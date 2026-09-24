@@ -1,3 +1,4 @@
+#define NOMINMAX
 #include "ui.h"
 #include <commdlg.h>
 #include <shobjidl.h>
@@ -51,87 +52,116 @@ void VibeUI::Initialize() {
 
     m_showUpdateModal = false;
     m_showProcessPicker = false;
+    m_showProfilePicker = false;
+    m_isWaitingForGame = false;
 }
 
 void VibeUI::SetupStyles() {
     ImGuiStyle& style = ImGui::GetStyle();
 
-    style.WindowRounding    = 14.0f;
-    style.ChildRounding     = 10.0f;
-    style.FrameRounding     = 8.0f;
-    style.PopupRounding     = 10.0f;
-    style.ScrollbarRounding = 8.0f;
+    style.WindowRounding    = 12.0f;
+    style.ChildRounding     = 8.0f;
+    style.FrameRounding     = 6.0f;
+    style.PopupRounding     = 8.0f;
+    style.ScrollbarRounding = 6.0f;
     style.GrabRounding      = 6.0f;
-    style.TabRounding       = 8.0f;
+    style.TabRounding       = 6.0f;
 
     style.WindowBorderSize  = 1.0f;
-    style.ChildBorderSize   = 0.0f;
+    style.ChildBorderSize   = 1.0f;
     style.PopupBorderSize   = 1.0f;
     style.FrameBorderSize   = 1.0f;
 
-    style.WindowPadding     = ImVec2(20.0f, 16.0f);
-    style.FramePadding      = ImVec2(10.0f, 7.0f);
-    style.ItemSpacing       = ImVec2(10.0f, 8.0f);
+    style.WindowPadding     = ImVec2(24.0f, 16.0f);
+    style.FramePadding      = ImVec2(10.0f, 6.0f);
+    style.ItemSpacing       = ImVec2(12.0f, 8.0f);
     style.ItemInnerSpacing  = ImVec2(8.0f, 6.0f);
 
     style.AntiAliasedLines  = true;
     style.AntiAliasedFill   = true;
 
+    // Primordial Palette: Dark obsidian matte charcoal with soft rose and cyan accents
     ImVec4* colors = style.Colors;
-    colors[ImGuiCol_WindowBg]             = ImVec4(0.043f, 0.051f, 0.067f, 0.98f);
-    colors[ImGuiCol_ChildBg]              = ImVec4(0.000f, 0.000f, 0.000f, 0.00f); 
-    colors[ImGuiCol_PopupBg]              = ImVec4(0.055f, 0.063f, 0.082f, 0.98f); 
-    colors[ImGuiCol_Border]               = ImVec4(0.200f, 0.235f, 0.314f, 0.70f); 
-    colors[ImGuiCol_BorderShadow]         = ImVec4(0.000f, 0.000f, 0.000f, 0.60f);
+    colors[ImGuiCol_WindowBg]             = ImVec4(0.063f, 0.067f, 0.082f, 1.00f); // #101115
+    colors[ImGuiCol_ChildBg]              = ImVec4(0.090f, 0.094f, 0.118f, 1.00f); // #17181e
+    colors[ImGuiCol_PopupBg]              = ImVec4(0.082f, 0.086f, 0.106f, 0.98f); 
+    colors[ImGuiCol_Border]               = ImVec4(0.180f, 0.190f, 0.235f, 0.70f); // #2e303c
+    colors[ImGuiCol_BorderShadow]         = ImVec4(0.000f, 0.000f, 0.000f, 0.00f);
 
-    colors[ImGuiCol_FrameBg]              = ImVec4(0.075f, 0.086f, 0.118f, 1.00f);
-    colors[ImGuiCol_FrameBgHovered]       = ImVec4(0.130f, 0.150f, 0.205f, 1.00f);
-    colors[ImGuiCol_FrameBgActive]        = ImVec4(0.170f, 0.195f, 0.265f, 1.00f);
+    colors[ImGuiCol_FrameBg]              = ImVec4(0.075f, 0.078f, 0.098f, 1.00f);
+    colors[ImGuiCol_FrameBgHovered]       = ImVec4(0.120f, 0.125f, 0.157f, 1.00f);
+    colors[ImGuiCol_FrameBgActive]        = ImVec4(0.150f, 0.157f, 0.196f, 1.00f);
 
-    colors[ImGuiCol_TitleBg]              = ImVec4(0.035f, 0.039f, 0.051f, 1.00f);
-    colors[ImGuiCol_TitleBgActive]        = ImVec4(0.043f, 0.051f, 0.067f, 1.00f);
-    colors[ImGuiCol_TitleBgCollapsed]     = ImVec4(0.035f, 0.039f, 0.051f, 0.80f);
+    colors[ImGuiCol_TitleBg]              = ImVec4(0.055f, 0.059f, 0.071f, 1.00f);
+    colors[ImGuiCol_TitleBgActive]        = ImVec4(0.063f, 0.067f, 0.082f, 1.00f);
+    colors[ImGuiCol_TitleBgCollapsed]     = ImVec4(0.055f, 0.059f, 0.071f, 1.00f);
 
-    colors[ImGuiCol_MenuBarBg]            = ImVec4(0.043f, 0.051f, 0.067f, 1.00f);
-    colors[ImGuiCol_ScrollbarBg]          = ImVec4(0.035f, 0.039f, 0.051f, 0.50f);
-    colors[ImGuiCol_ScrollbarGrab]        = ImVec4(0.180f, 0.208f, 0.278f, 0.80f);
-    colors[ImGuiCol_ScrollbarGrabHovered] = ImVec4(0.850f, 0.120f, 0.240f, 0.80f);
-    colors[ImGuiCol_ScrollbarGrabActive]  = ImVec4(1.000f, 0.169f, 0.294f, 1.00f);
+    colors[ImGuiCol_CheckMark]            = ImVec4(0.933f, 0.557f, 0.643f, 1.00f); // Primordial Rose #ee8ea4
+    colors[ImGuiCol_SliderGrab]           = ImVec4(0.933f, 0.557f, 0.643f, 1.00f);
+    colors[ImGuiCol_SliderGrabActive]     = ImVec4(1.000f, 0.650f, 0.720f, 1.00f);
 
-    colors[ImGuiCol_CheckMark]            = ImVec4(1.000f, 0.169f, 0.294f, 1.00f);
-    colors[ImGuiCol_SliderGrab]           = ImVec4(1.000f, 0.169f, 0.294f, 1.00f);
-    colors[ImGuiCol_SliderGrabActive]     = ImVec4(1.000f, 0.250f, 0.380f, 1.00f);
+    colors[ImGuiCol_Button]               = ImVec4(0.094f, 0.098f, 0.125f, 1.00f);
+    colors[ImGuiCol_ButtonHovered]        = ImVec4(0.150f, 0.157f, 0.196f, 1.00f);
+    colors[ImGuiCol_ButtonActive]         = ImVec4(0.190f, 0.200f, 0.250f, 1.00f);
 
-    colors[ImGuiCol_Button]               = ImVec4(0.118f, 0.137f, 0.188f, 0.90f);
-    colors[ImGuiCol_ButtonHovered]        = ImVec4(0.750f, 0.100f, 0.200f, 0.85f);
-    colors[ImGuiCol_ButtonActive]         = ImVec4(0.950f, 0.150f, 0.280f, 1.00f);
+    colors[ImGuiCol_Header]               = ImVec4(0.130f, 0.137f, 0.173f, 1.00f);
+    colors[ImGuiCol_HeaderHovered]        = ImVec4(0.180f, 0.190f, 0.235f, 1.00f);
+    colors[ImGuiCol_HeaderActive]         = ImVec4(0.220f, 0.230f, 0.285f, 1.00f);
 
-    colors[ImGuiCol_Header]               = ImVec4(0.149f, 0.173f, 0.235f, 0.80f);
-    colors[ImGuiCol_HeaderHovered]        = ImVec4(0.700f, 0.090f, 0.180f, 0.60f);
-    colors[ImGuiCol_HeaderActive]         = ImVec4(0.900f, 0.130f, 0.250f, 0.90f);
+    colors[ImGuiCol_Separator]            = ImVec4(0.180f, 0.190f, 0.235f, 0.60f);
+    colors[ImGuiCol_SeparatorHovered]     = ImVec4(0.933f, 0.557f, 0.643f, 0.80f);
+    colors[ImGuiCol_SeparatorActive]      = ImVec4(0.933f, 0.557f, 0.643f, 1.00f);
 
-    colors[ImGuiCol_Separator]            = ImVec4(0.180f, 0.208f, 0.278f, 0.50f);
-    colors[ImGuiCol_SeparatorHovered]     = ImVec4(1.000f, 0.169f, 0.294f, 0.70f);
-    colors[ImGuiCol_SeparatorActive]      = ImVec4(1.000f, 0.169f, 0.294f, 1.00f);
-
-    colors[ImGuiCol_Text]                 = ImVec4(0.950f, 0.960f, 0.980f, 1.00f);
-    colors[ImGuiCol_TextDisabled]         = ImVec4(0.480f, 0.520f, 0.600f, 1.00f);
+    colors[ImGuiCol_Text]                 = ImVec4(0.920f, 0.925f, 0.940f, 1.00f);
+    colors[ImGuiCol_TextDisabled]         = ImVec4(0.530f, 0.550f, 0.620f, 1.00f);
 }
 
-void VibeUI::DrawRadialGlow(ImDrawList* drawList, ImVec2 center, float radius, ImU32 color, int steps) {
-    float r = (float)((color >> IM_COL32_R_SHIFT) & 0xFF) / 255.0f;
-    float g = (float)((color >> IM_COL32_G_SHIFT) & 0xFF) / 255.0f;
-    float b = (float)((color >> IM_COL32_B_SHIFT) & 0xFF) / 255.0f;
-    float baseAlpha = (float)((color >> IM_COL32_A_SHIFT) & 0xFF) / 255.0f;
+// Draw the authentic Primordial Hourglass Logo
+void VibeUI::DrawHourglassLogo(ImDrawList* drawList, ImVec2 center, float size, ImU32 outlineColor, ImU32 sandColor) {
+    float r = size * 0.21f;
+    float topCy = center.y - size * 0.22f;
+    float botCy = center.y + size * 0.22f;
+    float stroke = (std::max)(1.6f, size * 0.045f);
 
-    for (int i = steps; i >= 1; --i) {
-        float factor = (float)i / (float)steps;
-        float currentRadius = radius * factor;
-        float alpha = baseAlpha * (1.0f - factor * 0.85f) / (float)steps;
-        drawList->AddCircleFilled(center, currentRadius, ImColor(r, g, b, alpha), 36);
-    }
+    // Top loop
+    drawList->AddCircle(ImVec2(center.x, topCy), r, outlineColor, 28, stroke);
+
+    // Bottom loop
+    drawList->AddCircle(ImVec2(center.x, botCy), r, outlineColor, 28, stroke);
+
+    // Sand cone inside the bottom loop
+    float sandTopY = center.y + size * 0.08f;
+    float sandBaseY = botCy + r * 0.70f;
+    float sandHalfW = r * 0.72f;
+
+    ImVec2 sandPoints[3] = {
+        ImVec2(center.x, sandTopY),
+        ImVec2(center.x - sandHalfW, sandBaseY),
+        ImVec2(center.x + sandHalfW, sandBaseY)
+    };
+    drawList->AddConvexPolyFilled(sandPoints, 3, sandColor);
+
+    // Neck intersection accent
+    drawList->AddLine(ImVec2(center.x - r * 0.35f, center.y), ImVec2(center.x + r * 0.35f, center.y), outlineColor, stroke);
 }
 
+// Draw the signature Primordial gradient underline
+void VibeUI::DrawGradientUnderline(ImDrawList* drawList, ImVec2 start, ImVec2 end, ImU32 colLeft, ImU32 colRight) {
+    float width = end.x - start.x;
+    float halfW = width * 0.5f;
+    ImVec2 mid(start.x + halfW, start.y);
+
+    drawList->AddRectFilledMultiColor(start, ImVec2(mid.x, start.y + 1.5f), colLeft, colRight, colRight, colLeft);
+    drawList->AddRectFilledMultiColor(mid, ImVec2(end.x, start.y + 1.5f), colRight, colLeft, colLeft, colRight);
+}
+
+// Flat card with subtle border (No glow on cards, as requested)
+void VibeUI::DrawFlatCard(ImDrawList* drawList, ImVec2 min, ImVec2 max, ImU32 bgCol, ImU32 borderCol, float rounding) {
+    drawList->AddRectFilled(min, max, bgCol, rounding);
+    drawList->AddRect(min, max, borderCol, rounding, 0, 1.0f);
+}
+
+// Smooth bloom glow for the LOAD button
 void VibeUI::DrawGlow(ImDrawList* drawList, ImVec2 min, ImVec2 max, ImU32 color, float rounding, float glowSize, int passes) {
     float r = (float)((color >> IM_COL32_R_SHIFT) & 0xFF) / 255.0f;
     float g = (float)((color >> IM_COL32_G_SHIFT) & 0xFF) / 255.0f;
@@ -142,78 +172,21 @@ void VibeUI::DrawGlow(ImDrawList* drawList, ImVec2 min, ImVec2 max, ImU32 color,
         float factor = (float)i / (float)passes;
         float expand = glowSize * factor;
         float alpha = baseAlpha * (1.0f - factor * 0.75f) / (float)passes;
-
-        ImU32 passCol = ImColor(r, g, b, alpha);
-        drawList->AddRect(
-            ImVec2(min.x - expand, min.y - expand),
-            ImVec2(max.x + expand, max.y + expand),
-            passCol,
-            rounding + expand * 0.4f,
-            0,
-            1.5f + expand * 0.35f
-        );
+        ImVec2 gMin(min.x - expand, min.y - expand);
+        ImVec2 gMax(max.x + expand, max.y + expand);
+        drawList->AddRectFilled(gMin, gMax, ImColor(r, g, b, alpha), rounding + expand * 0.5f);
     }
 }
 
-void VibeUI::Draw3DCard(ImDrawList* drawList, ImVec2 min, ImVec2 max, ImU32 topBg, ImU32 botBg, ImU32 borderColor, float rounding, bool withGlow, ImU32 glowCol, float glowIntensity) {
-    // 1. Triple-pass ambient drop shadow
-    drawList->AddRectFilled(
-        ImVec2(min.x + 2, min.y + 3),
-        ImVec2(max.x + 2, max.y + 5),
-        IM_COL32(0, 0, 0, 80),
-        rounding
-    );
-    drawList->AddRectFilled(
-        ImVec2(min.x - 1, min.y + 7),
-        ImVec2(max.x + 1, max.y + 14),
-        IM_COL32(0, 0, 0, 45),
-        rounding + 2.0f
-    );
-
-    // 2. Volumetric perimeter neon red glow
-    if (withGlow && glowIntensity > 0.0f) {
-        ImU32 glow = (glowCol != 0) ? glowCol : IM_COL32(255, 43, 75, 45);
-        DrawGlow(drawList, min, max, glow, rounding, 8.0f * glowIntensity, 4);
-    }
-
-    // 3. Card Surface 3D Vertical Gradient
-    drawList->AddRectFilledMultiColor(min, max, topBg, topBg, botBg, botBg);
-
-    // 4. Specular Top Highlight Line
-    drawList->AddLine(
-        ImVec2(min.x + rounding, min.y + 1.2f),
-        ImVec2(max.x - rounding, min.y + 1.2f),
-        IM_COL32(255, 255, 255, 45),
-        1.0f
-    );
-    drawList->AddLine(
-        ImVec2(min.x + rounding, min.y + 1.2f),
-        ImVec2(min.x + rounding + 75.0f, min.y + 1.2f),
-        IM_COL32(255, 80, 110, 150),
-        1.5f
-    );
-
-    // 5. 3D Bottom inset shadow
-    drawList->AddLine(
-        ImVec2(min.x + rounding, max.y - 1.2f),
-        ImVec2(max.x - rounding, max.y - 1.2f),
-        IM_COL32(0, 0, 0, 100),
-        1.0f
-    );
-
-    // 6. Crisp Outer Border
-    drawList->AddRect(min, max, borderColor, rounding, 0, 1.2f);
-}
-
-bool VibeUI::GlowingButton(const char* label, ImVec2 size, ImU32 baseCol, ImU32 hoverCol, ImU32 glowCol, bool pulse, bool isPrimary) {
+// Primordial Button (Clean flat style with glowing LOAD button)
+bool VibeUI::PrimordialButton(const char* label, ImVec2 size, bool isPrimary, bool withGlow) {
     ImVec2 p = ImGui::GetCursorScreenPos();
     ImDrawList* drawList = ImGui::GetWindowDrawList();
 
     ImVec2 min = p;
     ImVec2 max = ImVec2(p.x + size.x, p.y + size.y);
-    float rounding = 8.0f;
+    float rounding = 6.0f;
 
-    // Use transparent button to capture mouse interaction cleanly
     ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0, 0, 0, 0));
     ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0, 0, 0, 0));
     ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4(0, 0, 0, 0));
@@ -226,78 +199,38 @@ bool VibeUI::GlowingButton(const char* label, ImVec2 size, ImU32 baseCol, ImU32 
     ImGui::PopStyleVar();
     ImGui::PopStyleColor(3);
 
-    float time = (float)ImGui::GetTime();
-    float pulseAlpha = 0.5f + 0.5f * sinf(time * 3.8f);
-
-    // Glowing Bloom Effect
-    if (hovered || pulse || isPrimary) {
-        ImU32 currentGlow = glowCol;
-        float glowAlphaMult = hovered ? 1.5f : (pulse ? (0.7f + 0.5f * pulseAlpha) : 1.0f);
-        
-        float r = (float)((glowCol >> IM_COL32_R_SHIFT) & 0xFF) / 255.0f;
-        float g = (float)((glowCol >> IM_COL32_G_SHIFT) & 0xFF) / 255.0f;
-        float b = (float)((glowCol >> IM_COL32_B_SHIFT) & 0xFF) / 255.0f;
-        float a = (float)((glowCol >> IM_COL32_A_SHIFT) & 0xFF) / 255.0f;
-        float mult = hovered ? 1.5f : (pulse ? (0.6f + 0.5f * pulseAlpha) : 1.0f);
-        currentGlow = ImColor(r, g, b, std::clamp(a * mult, 0.0f, 1.0f));
-
-        DrawGlow(drawList, min, max, currentGlow, rounding, (hovered || isPrimary) ? 12.0f : 6.0f, 4);
+    // Glowing bloom under the LOAD button
+    if (isPrimary && withGlow) {
+        float time = (float)ImGui::GetTime();
+        float pulse = 0.8f + 0.2f * sinf(time * 3.5f);
+        ImU32 glowCol = hovered ? IM_COL32(238, 142, 164, 180) : IM_COL32(238, 142, 164, (int)(110 * pulse));
+        DrawGlow(drawList, min, max, glowCol, rounding, hovered ? 12.0f : 8.0f, 4);
     }
 
-    // 3D Button Surface Gradient
+    // Button body
+    ImU32 bgCol;
+    ImU32 borderCol;
+    ImU32 textCol = IM_COL32(235, 235, 240, 255);
+
     if (isPrimary) {
-        ImU32 topCol = hovered ? IM_COL32(255, 60, 95, 255) : IM_COL32(235, 30, 70, 255);
-        ImU32 botCol = active ? IM_COL32(170, 15, 45, 255) : (hovered ? IM_COL32(200, 20, 50, 255) : IM_COL32(165, 15, 42, 255));
-        drawList->AddRectFilledMultiColor(min, max, topCol, topCol, botCol, botCol);
+        bgCol = active ? IM_COL32(36, 38, 48, 255) : (hovered ? IM_COL32(28, 30, 38, 255) : IM_COL32(18, 20, 26, 255));
+        borderCol = hovered ? IM_COL32(255, 165, 185, 255) : IM_COL32(238, 142, 164, 200);
+        textCol = hovered ? IM_COL32(255, 255, 255, 255) : IM_COL32(245, 175, 195, 255);
     }
     else {
-        ImU32 bg = active ? IM_COL32(200, 25, 55, 255) : (hovered ? hoverCol : baseCol);
-        drawList->AddRectFilled(min, max, bg, rounding);
+        bgCol = active ? IM_COL32(32, 34, 42, 255) : (hovered ? IM_COL32(24, 26, 32, 255) : IM_COL32(18, 19, 24, 255));
+        borderCol = hovered ? IM_COL32(80, 85, 105, 255) : IM_COL32(45, 48, 60, 200);
     }
 
-    // Top Specular Highlight
-    drawList->AddLine(
-        ImVec2(min.x + rounding, min.y + 1.2f),
-        ImVec2(max.x - rounding, min.y + 1.2f),
-        IM_COL32(255, 255, 255, (hovered || isPrimary) ? 120 : 60),
-        1.2f
-    );
+    drawList->AddRectFilled(min, max, bgCol, rounding);
+    drawList->AddRect(min, max, borderCol, rounding, 0, 1.0f);
 
-    // Border
-    ImU32 borderC = hovered ? IM_COL32(255, 75, 105, 255) : (isPrimary ? IM_COL32(255, 43, 75, 220) : IM_COL32(60, 72, 98, 200));
-    drawList->AddRect(min, max, borderC, rounding, 0, 1.2f);
-
-    // Centered Text
-    if (m_fontBold) ImGui::PushFont(m_fontBold);
+    // Center text
     ImVec2 textSize = ImGui::CalcTextSize(label);
-    ImVec2 textPos = ImVec2(
-        min.x + (size.x - textSize.x) * 0.5f,
-        min.y + (size.y - textSize.y) * 0.5f
-    );
-    drawList->AddText(textPos, IM_COL32(255, 255, 255, 255), label);
-    if (m_fontBold) ImGui::PopFont();
+    ImVec2 textPos(min.x + (size.x - textSize.x) * 0.5f, min.y + (size.y - textSize.y) * 0.5f);
+    drawList->AddText(textPos, textCol, label);
 
     return clicked;
-}
-
-void VibeUI::RenderBackgroundEffects(ImDrawList* drawList, ImVec2 winSize) {
-    drawList->PushClipRect(ImVec2(0, 0), winSize, true);
-
-    // Atmospheric Red Glowing Aura behind Header & Logo
-    DrawRadialGlow(drawList, ImVec2(140.0f, 80.0f), 280.0f, IM_COL32(255, 35, 68, 45), 18);
-
-    // Subtle Ruby Ambient Light
-    DrawRadialGlow(drawList, ImVec2(winSize.x - 120.0f, winSize.y - 80.0f), 240.0f, IM_COL32(220, 20, 50, 28), 14);
-
-    // Subtle Cyber Grid pattern bounded cleanly inside window
-    for (float x = 20.0f; x < winSize.x; x += 40.0f) {
-        drawList->AddLine(ImVec2(x, 0), ImVec2(x, winSize.y), IM_COL32(255, 255, 255, 5), 1.0f);
-    }
-    for (float y = 20.0f; y < winSize.y; y += 40.0f) {
-        drawList->AddLine(ImVec2(0, y), ImVec2(winSize.x, y), IM_COL32(255, 255, 255, 5), 1.0f);
-    }
-
-    drawList->PopClipRect();
 }
 
 void VibeUI::OpenDllFileDialog() {
@@ -345,30 +278,19 @@ void VibeUI::TriggerInjection() {
     DWORD pid = Memory::GetPID(exeW.c_str());
 
     if (pid == 0) {
-        if (ConfigManager::Get().Settings().waitForProcess) {
-            m_lastInjectLog = "Waiting for process: " + std::string(m_bufProcessName);
-            m_injectSuccess = false;
-            m_injectMessageTimer = 8.0f;
-            return;
-        }
-        else {
-            m_lastInjectLog = "Process not running: " + std::string(m_bufProcessName) + ". Start the program first.";
-            m_injectSuccess = false;
-            m_injectMessageTimer = 6.0f;
-            return;
-        }
-    }
-
-    std::string dllFile = m_bufDllPath;
-    if (dllFile.empty()) {
-        m_lastInjectLog = "Error: Please select a payload DLL file.";
+        m_isWaitingForGame = true;
+        m_lastInjectLog = "waiting for game....";
         m_injectSuccess = false;
-        m_injectMessageTimer = 6.0f;
+        m_injectMessageTimer = 10.0f;
         return;
     }
 
     m_isInjecting = true;
-    m_lastInjectLog = "Mapping PE sections into PID " + std::to_string(pid) + "...";
+    m_isWaitingForGame = false;
+    m_lastInjectLog = "injecting module....";
+    m_injectMessageTimer = 6.0f;
+
+    std::string dllFile = m_bufDllPath;
 
     std::thread([this, pid, dllFile]() {
         std::string logOut;
@@ -387,18 +309,17 @@ void VibeUI::TriggerInjection() {
 }
 
 void VibeUI::TriggerUpdateCheck() {
-    // Manual sync check for DLL from GitHub
     auto& profile = ConfigManager::Get().GetActiveProfile();
     UpdateConfig cfg;
-    cfg.githubRepo = m_bufGithubRepo[0] ? m_bufGithubRepo : profile.githubRepo;
+    cfg.githubRepo = profile.githubRepo;
     cfg.assetPattern = profile.githubAsset.empty() ? ".dll" : profile.githubAsset;
-    cfg.directUrl = m_bufDirectUrl[0] ? m_bufDirectUrl : profile.directUrl;
-    cfg.localSavePath = m_bufDllPath[0] ? m_bufDllPath : profile.dllPath;
+    cfg.directUrl = profile.directUrl;
+    cfg.localSavePath = profile.dllPath;
     cfg.currentVersion = profile.version;
     cfg.isSilent = true;
 
-    m_lastInjectLog = "Checking GitHub repository for latest payload...";
-    m_injectMessageTimer = 5.0f;
+    m_lastInjectLog = "Checking for payload updates...";
+    m_injectMessageTimer = 4.0f;
     m_updater.CheckDllSilentAsync(cfg);
 }
 
@@ -411,7 +332,7 @@ void VibeUI::Render() {
         m_cachedTargetPid = Memory::GetPID(exeW.c_str());
         m_cachedTargetRunning = (m_cachedTargetPid != 0);
 
-        if (m_cachedTargetRunning && ConfigManager::Get().Settings().waitForProcess && !m_isInjecting && m_lastInjectLog.find("Waiting") != std::string::npos) {
+        if (m_cachedTargetRunning && m_isWaitingForGame && !m_isInjecting) {
             TriggerInjection();
         }
     }
@@ -420,7 +341,7 @@ void VibeUI::Render() {
         m_injectMessageTimer -= ImGui::GetIO().DeltaTime;
     }
 
-    // Auto-open modal ONLY IF a new loader update was actually discovered
+    // Auto-open modal ONLY IF a new loader update was actually discovered on GitHub
     if (m_updater.HasNewLoaderUpdate()) {
         m_showUpdateModal = true;
     }
@@ -429,40 +350,19 @@ void VibeUI::Render() {
     ImGui::SetNextWindowSize(ImGui::GetIO().DisplaySize);
 
     ImGuiWindowFlags winFlags = ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoSavedSettings;
-    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(20, 16));
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(24.0f, 16.0f));
     
     if (m_fontRegular) ImGui::PushFont(m_fontRegular);
     ImGui::Begin("##MainWindow", nullptr, winFlags);
 
-    ImDrawList* drawList = ImGui::GetWindowDrawList();
-    RenderBackgroundEffects(drawList, ImGui::GetWindowSize());
+    RenderTopBar();
 
-    RenderTitleBar();
-    RenderHeaderBanner();
-
-    ImGui::Spacing();
-
-    // Middle Area: Left Column + Right Column
-    // Calculate exact height so middle area NEVER overlaps the footer
-    float topAreaHeight = 118.0f;
-    float footerHeight = 60.0f;
-    float middleHeight = ImGui::GetWindowHeight() - topAreaHeight - footerHeight - 16.0f; // ~386px
-
-    // Left Column
-    ImGui::BeginChild("##LeftColumn", ImVec2(245, middleHeight), false, ImGuiWindowFlags_NoBackground);
-    RenderLeftPanel();
-    ImGui::EndChild();
-
-    ImGui::SameLine(0, 16.0f);
-
-    // Right Column
-    float rightWidth = ImGui::GetWindowWidth() - 245.0f - 56.0f;
-    ImGui::BeginChild("##RightColumn", ImVec2(rightWidth, middleHeight), false, ImGuiWindowFlags_NoBackground);
-    RenderRightPanel();
-    ImGui::EndChild();
-
-    // Footer Bar (Clean, unobstructed row at the bottom)
-    RenderFooterBar();
+    if (m_isWaitingForGame) {
+        RenderWaitingForGameScreen();
+    }
+    else {
+        RenderPrimordialDashboard();
+    }
 
     // Modals
     if (m_showUpdateModal) {
@@ -471,294 +371,215 @@ void VibeUI::Render() {
     if (m_showProcessPicker) {
         RenderProcessPickerModal();
     }
+    if (m_showProfilePicker) {
+        RenderProfilePickerModal();
+    }
 
     ImGui::End();
     if (m_fontRegular) ImGui::PopFont();
     ImGui::PopStyleVar();
 }
 
-void VibeUI::RenderTitleBar() {
+void VibeUI::RenderTopBar() {
     ImVec2 p = ImGui::GetCursorScreenPos();
-    ImDrawList* drawList = ImGui::GetWindowDrawList();
-    float width = ImGui::GetWindowWidth() - 40.0f;
+    float width = ImGui::GetWindowWidth() - 48.0f;
 
-    // Glowing Neon Crimson Dot
-    drawList->AddCircleFilled(ImVec2(p.x + 8, p.y + 12), 4.5f, IM_COL32(255, 43, 75, 255));
-    DrawGlow(drawList, ImVec2(p.x + 4, p.y + 8), ImVec2(p.x + 12, p.y + 16), IM_COL32(255, 43, 75, 180), 4.5f, 6.0f, 3);
-
-    // Title: NeoNirvana (No slashes!)
-    if (m_fontBold) ImGui::PushFont(m_fontBold);
-    drawList->AddText(ImVec2(p.x + 22, p.y + 2), IM_COL32(255, 255, 255, 255), "NEONIRVANA");
-    if (m_fontBold) ImGui::PopFont();
-
-    if (m_fontSmall) ImGui::PushFont(m_fontSmall);
-    drawList->AddText(ImVec2(p.x + 130, p.y + 5), IM_COL32(150, 160, 180, 255), "STEALTH MANUAL MAP CORE");
-    if (m_fontSmall) ImGui::PopFont();
-
-    // Window controls
-    ImGui::SetCursorPosX(width - 56.0f);
+    // Window controls at top right (Clean rounded buttons)
+    ImGui::SetCursorPos(ImVec2(width - 24.0f, 12.0f));
+    ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0, 0, 0, 0));
+    ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.2f, 0.22f, 0.28f, 0.6f));
     if (ImGui::Button("-##Minimize", ImVec2(24, 22))) {
         HWND hWnd = GetActiveWindow();
         ShowWindow(hWnd, SW_MINIMIZE);
     }
-    ImGui::SameLine();
-    ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.9f, 0.1f, 0.2f, 0.9f));
+    ImGui::SameLine(0, 6.0f);
+    ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.85f, 0.2f, 0.3f, 0.8f));
     if (ImGui::Button("X##Close", ImVec2(24, 22))) {
         shouldClose = true;
     }
-    ImGui::PopStyleColor();
+    ImGui::PopStyleColor(3);
 
-    ImGui::Spacing();
+    ImGui::SetCursorPos(ImVec2(24.0f, 24.0f));
 }
 
-void VibeUI::RenderHeaderBanner() {
-    ImVec2 p = ImGui::GetCursorScreenPos();
-    float width = ImGui::GetWindowWidth() - 40.0f;
-    float height = 66.0f;
+// Main Dashboard inspired faithfully by Primordial
+void VibeUI::RenderPrimordialDashboard() {
+    ImVec2 winSize = ImGui::GetWindowSize();
     ImDrawList* drawList = ImGui::GetWindowDrawList();
 
-    // 3D Card for Header
-    Draw3DCard(drawList, p, ImVec2(p.x + width, p.y + height), 
-               IM_COL32(30, 36, 50, 255), IM_COL32(16, 20, 29, 255),
-               IM_COL32(255, 43, 75, 140), 12.0f, true, IM_COL32(255, 43, 75, 55), 1.0f);
+    // 1. Centered Header: Hourglass Logo + "primordial" (in soft rose)
+    float centerX = winSize.x * 0.5f;
+    float headerY = 56.0f;
 
-    // Left Branding: NeoNirvana
+    // Hourglass Logo (28px height)
+    ImVec2 logoCenter(centerX - 82.0f, headerY + 12.0f);
+    DrawHourglassLogo(drawList, logoCenter, 28.0f, IM_COL32(230, 232, 240, 255), IM_COL32(238, 142, 164, 255));
+
+    // Title: primordial
     if (m_fontTitle) ImGui::PushFont(m_fontTitle);
-    drawList->AddText(ImVec2(p.x + 20, p.y + 12), IM_COL32(255, 43, 75, 255), "NeoNirvana");
+    drawList->AddText(ImVec2(centerX - 56.0f, headerY), IM_COL32(238, 142, 164, 255), "primordial");
     if (m_fontTitle) ImGui::PopFont();
 
+    // 2. Signature Gradient Underline
+    float lineY = headerY + 44.0f;
+    float lineWidth = winSize.x - 96.0f;
+    float lineStartX = 48.0f;
+    DrawGradientUnderline(drawList, ImVec2(lineStartX, lineY), ImVec2(lineStartX + lineWidth, lineY),
+                          IM_COL32(238, 142, 164, 220), IM_COL32(140, 212, 198, 200));
+
+    // 3. Four Flat Information Blocks (2x2 Grid)
+    float gridTopY = lineY + 22.0f;
+    float gridW = winSize.x - 96.0f;
+    float colW = (gridW - 20.0f) * 0.5f;
+    float rowH = 68.0f;
+
+    auto& activeProfile = ConfigManager::Get().GetActiveProfile();
+
+    // --- Block 1: Target Profile (Top-Left) ---
+    ImVec2 b1Min(lineStartX, gridTopY);
+    ImVec2 b1Max(lineStartX + colW, gridTopY + rowH);
+    DrawFlatCard(drawList, b1Min, b1Max, IM_COL32(22, 23, 29, 255), IM_COL32(38, 40, 50, 200), 8.0f);
+
+    // Profile icon
+    drawList->AddCircle(ImVec2(b1Min.x + 24.0f, b1Min.y + 24.0f), 7.0f, IM_COL32(160, 165, 180, 255), 16, 1.4f);
+    drawList->AddText(ImVec2(b1Min.x + 42.0f, b1Min.y + 14.0f), IM_COL32(150, 155, 170, 255), "Account ID:");
+    drawList->AddText(ImVec2(b1Min.x + 42.0f, b1Min.y + 36.0f), IM_COL32(238, 142, 164, 255), activeProfile.name.c_str());
+
+    // Clickable button on Block 1 to switch profile
+    ImGui::SetCursorScreenPos(ImVec2(b1Max.x - 72.0f, b1Min.y + 18.0f));
+    if (PrimordialButton("Switch", ImVec2(58, 26), false, false)) {
+        m_showProfilePicker = true;
+    }
+
+    // --- Block 2: Last Update (Top-Right) ---
+    ImVec2 b2Min(lineStartX + colW + 20.0f, gridTopY);
+    ImVec2 b2Max(lineStartX + gridW, gridTopY + rowH);
+    DrawFlatCard(drawList, b2Min, b2Max, IM_COL32(22, 23, 29, 255), IM_COL32(38, 40, 50, 200), 8.0f);
+
+    // Lightbulb / Clock icon
+    drawList->AddCircleFilled(ImVec2(b2Min.x + 24.0f, b2Min.y + 24.0f), 6.0f, IM_COL32(238, 142, 164, 220));
+    drawList->AddText(ImVec2(b2Min.x + 42.0f, b2Min.y + 14.0f), IM_COL32(150, 155, 170, 255), "Last Update:");
+    drawList->AddText(ImVec2(b2Min.x + 42.0f, b2Min.y + 36.0f), IM_COL32(235, 235, 240, 255), "24.09.2026 AT 11:40");
+
+    // --- Block 3: Cheat Status (Bottom-Left) ---
+    ImVec2 b3Min(lineStartX, gridTopY + rowH + 12.0f);
+    ImVec2 b3Max(lineStartX + colW, gridTopY + rowH * 2.0f + 12.0f);
+    DrawFlatCard(drawList, b3Min, b3Max, IM_COL32(22, 23, 29, 255), IM_COL32(38, 40, 50, 200), 8.0f);
+
+    // Shield checkmark icon
+    drawList->AddCircle(ImVec2(b3Min.x + 24.0f, b3Min.y + 24.0f), 7.0f, IM_COL32(0, 235, 140, 255), 16, 1.4f);
+    drawList->AddText(ImVec2(b3Min.x + 42.0f, b3Min.y + 14.0f), IM_COL32(150, 155, 170, 255), "Cheat status:");
     if (m_fontBold) ImGui::PushFont(m_fontBold);
-    drawList->AddText(ImVec2(p.x + 165, p.y + 16), IM_COL32(255, 255, 255, 255), "ELITE EDITION");
+    drawList->AddText(ImVec2(b3Min.x + 42.0f, b3Min.y + 36.0f), IM_COL32(238, 142, 164, 255), "UNDETECTED");
     if (m_fontBold) ImGui::PopFont();
 
-    if (m_fontSmall) ImGui::PushFont(m_fontSmall);
-    drawList->AddText(ImVec2(p.x + 20, p.y + 42), IM_COL32(170, 180, 200, 255), "ADVANCED STEALTH INJECTION ENGINE");
-
-    // Right Status Badge
-    float statusX = p.x + width - 160.0f;
-    drawList->AddCircleFilled(ImVec2(statusX, p.y + 32), 4.5f, IM_COL32(0, 245, 140, 255));
-    DrawGlow(drawList, ImVec2(statusX - 4, p.y + 28), ImVec2(statusX + 4, p.y + 36), IM_COL32(0, 245, 140, 180), 4.5f, 5.0f, 2);
-    drawList->AddText(ImVec2(statusX + 14, p.y + 24), IM_COL32(0, 245, 140, 255), "SYSTEM ONLINE");
-    if (m_fontSmall) ImGui::PopFont();
-
-    ImGui::Dummy(ImVec2(width, height));
-}
-
-void VibeUI::RenderLeftPanel() {
-    ImVec2 p = ImGui::GetCursorScreenPos();
-    ImVec2 size = ImGui::GetContentRegionAvail();
-    ImDrawList* drawList = ImGui::GetWindowDrawList();
-
-    // Left Panel 3D Card
-    Draw3DCard(drawList, p, ImVec2(p.x + size.x, p.y + size.y), 
-               IM_COL32(25, 30, 42, 255), IM_COL32(14, 17, 24, 255),
-               IM_COL32(52, 62, 86, 200), 10.0f, true, IM_COL32(255, 43, 75, 35), 0.8f);
-
-    // Padding child inside the card to prevent any border leaking
-    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(16.0f, 16.0f));
-    ImGui::BeginChild("##LeftPanelChild", size, false, ImGuiWindowFlags_NoBackground);
-
-    if (m_fontBold) ImGui::PushFont(m_fontBold);
-    ImGui::TextColored(ImVec4(0.95f, 0.96f, 0.98f, 1.0f), "Profiles");
-    if (m_fontBold) ImGui::PopFont();
-
-    ImGui::Dummy(ImVec2(0, 4.0f));
-    ImGui::Separator();
-    ImGui::Dummy(ImVec2(0, 8.0f));
-
-    auto& settings = ConfigManager::Get().Settings();
-    ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(0.0f, 6.0f));
-    for (int i = 0; i < (int)settings.profiles.size(); ++i) {
-        bool isSelected = (settings.activeProfileIndex == i);
-        
-        std::string itemLabel = settings.profiles[i].name;
-        if (ImGui::Selectable(itemLabel.c_str(), isSelected, 0, ImVec2(0, 32.0f))) {
-            settings.activeProfileIndex = i;
-            auto& activeP = ConfigManager::Get().GetActiveProfile();
-            strcpy_s(m_bufProcessName, sizeof(m_bufProcessName), activeP.exeName.c_str());
-            strcpy_s(m_bufDllPath, sizeof(m_bufDllPath), activeP.dllPath.c_str());
-            strcpy_s(m_bufGithubRepo, sizeof(m_bufGithubRepo), activeP.githubRepo.c_str());
-            strcpy_s(m_bufDirectUrl, sizeof(m_bufDirectUrl), activeP.directUrl.c_str());
-            ConfigManager::Get().Save();
-        }
-    }
-    ImGui::PopStyleVar();
-
-    ImGui::Dummy(ImVec2(0, 10.0f));
-    if (GlowingButton("+ Add Custom Profile", ImVec2(ImGui::GetContentRegionAvail().x, 32), 
-                      IM_COL32(32, 38, 54, 255), IM_COL32(180, 25, 55, 255), IM_COL32(255, 43, 75, 75))) {
-        TargetProfile customP;
-        customP.name = "Custom Game " + std::to_string(settings.profiles.size() + 1);
-        customP.exeName = "game.exe";
-        customP.dllPath = "payloads/custom.dll";
-        customP.version = "v1.0";
-        customP.statusText = "Undetected";
-        settings.profiles.push_back(customP);
-        settings.activeProfileIndex = (int)settings.profiles.size() - 1;
-        ConfigManager::Get().Save();
-    }
-
-    ImGui::EndChild();
-    ImGui::PopStyleVar();
-}
-
-void VibeUI::RenderRightPanel() {
-    float width = ImGui::GetContentRegionAvail().x;
-    ImDrawList* drawList = ImGui::GetWindowDrawList();
-
-    // --- CARD 1: Target Program Information ---
-    ImVec2 card1P = ImGui::GetCursorScreenPos();
-    float card1H = 136.0f;
-    Draw3DCard(drawList, card1P, ImVec2(card1P.x + width, card1P.y + card1H),
-               IM_COL32(28, 33, 46, 255), IM_COL32(15, 18, 26, 255),
-               IM_COL32(56, 66, 92, 200), 10.0f, true, IM_COL32(255, 43, 75, 35), 0.7f);
-
-    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(18.0f, 14.0f));
-    ImGui::BeginChild("##Card1Child", ImVec2(width, card1H), false, ImGuiWindowFlags_NoBackground);
-
-    // Row 1: Header + PID Status
-    if (m_fontBold) ImGui::PushFont(m_fontBold);
-    ImGui::TextColored(ImVec4(0.95f, 0.96f, 0.98f, 1.0f), "Game Information");
-    if (m_fontBold) ImGui::PopFont();
-
-    ImGui::SameLine(width - 180.0f);
-    if (m_cachedTargetRunning) {
-        ImGui::TextColored(ImVec4(0.0f, 0.95f, 0.55f, 1.0f), "Running [PID: %d]", m_cachedTargetPid);
-    } else {
-        ImGui::TextColored(ImVec4(1.0f, 0.75f, 0.20f, 1.0f), "Waiting for Game...");
-    }
-
-    ImGui::Dummy(ImVec2(0, 8.0f));
-
-    // Row 2: Label
-    ImGui::TextColored(ImVec4(0.72f, 0.77f, 0.88f, 1.0f), "Target Executable:");
-
-    ImGui::Dummy(ImVec2(0, 4.0f));
-
-    // Row 3: InputText + Select Process
-    ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x - 145.0f);
-    if (ImGui::InputText("##TargetExe", m_bufProcessName, sizeof(m_bufProcessName))) {
-        auto& p = ConfigManager::Get().GetActiveProfile();
-        p.exeName = m_bufProcessName;
-        ConfigManager::Get().Save();
-    }
-    ImGui::SameLine(0, 10.0f);
-    if (GlowingButton("Select Process", ImVec2(135, 26), IM_COL32(38, 46, 64, 255), IM_COL32(190, 25, 60, 255), IM_COL32(255, 43, 75, 80))) {
+    // Process select button on Block 3
+    ImGui::SetCursorScreenPos(ImVec2(b3Max.x - 72.0f, b3Min.y + 18.0f));
+    if (PrimordialButton("Process", ImVec2(58, 26), false, false)) {
         m_cachedProcessList = Memory::GetProcessList();
         m_showProcessPicker = true;
     }
 
-    ImGui::Dummy(ImVec2(0, 10.0f));
+    // --- Block 4: Sub expires in / DLL payload (Bottom-Right) ---
+    ImVec2 b4Min(lineStartX + colW + 20.0f, gridTopY + rowH + 12.0f);
+    ImVec2 b4Max(lineStartX + gridW, gridTopY + rowH * 2.0f + 12.0f);
+    DrawFlatCard(drawList, b4Min, b4Max, IM_COL32(22, 23, 29, 255), IM_COL32(38, 40, 50, 200), 8.0f);
 
-    // Row 4: Architecture Info
-    if (m_fontSmall) ImGui::PushFont(m_fontSmall);
-    ImGui::TextColored(ImVec4(0.60f, 0.65f, 0.75f, 1.0f), "Architecture: x64  |  Injection: Pure Manual Mapping  |  Privileges: SE_DEBUG");
-    if (m_fontSmall) ImGui::PopFont();
+    // Document icon
+    drawList->AddRect(ImVec2(b4Min.x + 18.0f, b4Min.y + 16.0f), ImVec2(b4Min.x + 28.0f, b4Min.y + 30.0f), IM_COL32(160, 165, 180, 255), 2.0f, 0, 1.4f);
+    drawList->AddText(ImVec2(b4Min.x + 42.0f, b4Min.y + 14.0f), IM_COL32(150, 155, 170, 255), "Sub expires in:");
+    drawList->AddText(ImVec2(b4Min.x + 42.0f, b4Min.y + 36.0f), IM_COL32(235, 235, 240, 255), "LIFETIME (Active)");
 
-    ImGui::EndChild();
-    ImGui::PopStyleVar();
-
-    ImGui::Dummy(ImVec2(0, 14.0f));
-
-    // --- CARD 2: Module Information (Clean, generous spacing, no repo input) ---
-    ImVec2 card2P = ImGui::GetCursorScreenPos();
-    float card2H = 136.0f;
-    Draw3DCard(drawList, card2P, ImVec2(card2P.x + width, card2P.y + card2H),
-               IM_COL32(28, 33, 46, 255), IM_COL32(15, 18, 26, 255),
-               IM_COL32(56, 66, 92, 200), 10.0f, true, IM_COL32(255, 43, 75, 35), 0.7f);
-
-    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(18.0f, 14.0f));
-    ImGui::BeginChild("##Card2Child", ImVec2(width, card2H), false, ImGuiWindowFlags_NoBackground);
-
-    // Row 1: Header + Undetected Status
-    if (m_fontBold) ImGui::PushFont(m_fontBold);
-    ImGui::TextColored(ImVec4(0.95f, 0.96f, 0.98f, 1.0f), "Module Information");
-    if (m_fontBold) ImGui::PopFont();
-
-    ImGui::SameLine(width - 160.0f);
-    ImGui::TextColored(ImVec4(0.0f, 0.95f, 0.55f, 1.0f), "Status: Undetected");
-
-    ImGui::Dummy(ImVec2(0, 8.0f));
-
-    // Row 2: DLL Path label
-    ImGui::TextColored(ImVec4(0.72f, 0.77f, 0.88f, 1.0f), "DLL Payload Path:");
-
-    ImGui::Dummy(ImVec2(0, 4.0f));
-
-    // Row 3: DLL Path input + Browse button
-    ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x - 110.0f);
-    if (ImGui::InputText("##DllPath", m_bufDllPath, sizeof(m_bufDllPath))) {
-        auto& p = ConfigManager::Get().GetActiveProfile();
-        p.dllPath = m_bufDllPath;
-        ConfigManager::Get().Save();
-    }
-    ImGui::SameLine(0, 10.0f);
-    if (GlowingButton("Browse...", ImVec2(100, 26), IM_COL32(38, 46, 64, 255), IM_COL32(190, 25, 60, 255), IM_COL32(255, 43, 75, 80))) {
+    // Browse DLL button on Block 4
+    ImGui::SetCursorScreenPos(ImVec2(b4Max.x - 72.0f, b4Min.y + 18.0f));
+    if (PrimordialButton("Browse", ImVec2(58, 26), false, false)) {
         OpenDllFileDialog();
     }
 
-    ImGui::Dummy(ImVec2(0, 10.0f));
+    // 4. Options Row (Clean flat checkboxes)
+    float optY = gridTopY + rowH * 2.0f + 30.0f;
+    ImGui::SetCursorScreenPos(ImVec2(lineStartX + 10.0f, optY));
 
-    // Row 4: Clean module details & auto-update status
-    auto& p = ConfigManager::Get().GetActiveProfile();
-    if (m_fontSmall) ImGui::PushFont(m_fontSmall);
-    ImGui::TextColored(ImVec4(0.60f, 0.65f, 0.75f, 1.0f), "Version: %s  |  Status: Ready  |  Active Profile: %s", 
-                       p.version.c_str(), p.name.c_str());
-    if (m_fontSmall) ImGui::PopFont();
-
-    ImGui::EndChild();
-    ImGui::PopStyleVar();
-
-    ImGui::Dummy(ImVec2(0, 14.0f));
-
-    // Options Row
     auto& settings = ConfigManager::Get().Settings();
-    if (ImGui::Checkbox("Save profile selection", &settings.saveSelection)) {
+    if (ImGui::Checkbox("Save configuration", &settings.saveSelection)) {
         ConfigManager::Get().Save();
     }
-    ImGui::SameLine(240.0f);
+    ImGui::SameLine(0, 28.0f);
     if (ImGui::Checkbox("Auto-close loader after load", &settings.autoCloseOnInject)) {
         ConfigManager::Get().Save();
     }
-}
 
-void VibeUI::RenderFooterBar() {
-    float width = ImGui::GetWindowWidth() - 40.0f;
-    ImGui::SetCursorPos(ImVec2(20.0f, ImGui::GetWindowHeight() - 56.0f));
+    // 5. Centered LOAD Button with subtle Primordial rose glow
+    float btnW = 190.0f;
+    float btnH = 36.0f;
+    float btnX = centerX - btnW * 0.5f;
+    float btnY = optY + 36.0f;
 
-    // Status Indicator with glowing bullet
-    ImVec2 p = ImGui::GetCursorScreenPos();
-    ImDrawList* drawList = ImGui::GetWindowDrawList();
-
-    ImU32 statusDotCol = m_injectSuccess ? IM_COL32(0, 245, 140, 255) : (m_isInjecting ? IM_COL32(255, 185, 30, 255) : IM_COL32(255, 43, 75, 255));
-    drawList->AddCircleFilled(ImVec2(p.x + 8, p.y + 20), 4.5f, statusDotCol);
-    DrawGlow(drawList, ImVec2(p.x + 4, p.y + 16), ImVec2(p.x + 12, p.y + 24), statusDotCol, 4.5f, 5.0f, 2);
-
-    ImGui::SetCursorPos(ImVec2(36.0f, ImGui::GetWindowHeight() - 48.0f));
-    if (m_isInjecting) {
-        ImGui::TextColored(ImVec4(1.0f, 0.75f, 0.2f, 1.0f), "Injecting payload...");
-    }
-    else if (m_injectMessageTimer > 0.0f) {
-        ImVec4 col = m_injectSuccess ? ImVec4(0.0f, 0.95f, 0.55f, 1.0f) : ImVec4(1.0f, 0.25f, 0.35f, 1.0f);
-        ImGui::TextColored(col, m_lastInjectLog.c_str());
-    }
-    else {
-        ImGui::TextColored(ImVec4(0.65f, 0.70f, 0.80f, 1.0f), "Engine Ready. Target configured.");
-    }
-
-    // LOAD button aligned to right edge with zero obstruction
-    ImGui::SetCursorPos(ImVec2(width - 170.0f, ImGui::GetWindowHeight() - 58.0f));
-
-    // Big Glowing 3D LOAD button
-    if (GlowingButton("LOAD", ImVec2(170, 42), IM_COL32(225, 25, 60, 255), IM_COL32(255, 45, 80, 255), IM_COL32(255, 43, 75, 220), true, true)) {
+    ImGui::SetCursorScreenPos(ImVec2(btnX, btnY));
+    if (m_fontBold) ImGui::PushFont(m_fontBold);
+    if (PrimordialButton("LOAD", ImVec2(btnW, btnH), true, true)) {
         TriggerInjection();
     }
+    if (m_fontBold) ImGui::PopFont();
+
+    // 6. Sub-status line
+    float statusY = btnY + btnH + 10.0f;
+    std::string displayStatus = m_injectMessageTimer > 0.0f ? m_lastInjectLog : (m_cachedTargetRunning ? ("Target detected: " + std::string(m_bufProcessName)) : "Engine Ready. Target configured.");
+    ImVec2 statusTextSize = ImGui::CalcTextSize(displayStatus.c_str());
+    ImVec2 statusPos(centerX - statusTextSize.x * 0.5f, statusY);
+    ImU32 statusCol = m_injectSuccess ? IM_COL32(0, 235, 140, 255) : IM_COL32(140, 145, 160, 255);
+    drawList->AddText(statusPos, statusCol, displayStatus.c_str());
 }
 
-// Modal for Automatic Loader Updates (Appears ONLY if new loader version exists on GitHub)
+// Authentic Primordial "waiting for game...." state screen
+void VibeUI::RenderWaitingForGameScreen() {
+    ImVec2 winSize = ImGui::GetWindowSize();
+    ImDrawList* drawList = ImGui::GetWindowDrawList();
+
+    float centerX = winSize.x * 0.5f;
+    float centerY = winSize.y * 0.42f;
+
+    // Animated Hourglass Logo in center (size: 64px)
+    float time = (float)ImGui::GetTime();
+    float pulse = 0.85f + 0.15f * sinf(time * 3.0f);
+    ImU32 sandCol = IM_COL32(238, 142, 164, (int)(255 * pulse));
+
+    DrawHourglassLogo(drawList, ImVec2(centerX, centerY - 25.0f), 64.0f, IM_COL32(235, 235, 245, 255), sandCol);
+
+    // Title: primordial
+    if (m_fontTitle) ImGui::PushFont(m_fontTitle);
+    ImVec2 titleSize = ImGui::CalcTextSize("primordial");
+    drawList->AddText(ImVec2(centerX - titleSize.x * 0.5f, centerY + 30.0f), IM_COL32(238, 142, 164, 255), "primordial");
+    if (m_fontTitle) ImGui::PopFont();
+
+    // Gradient underline
+    float lineY = centerY + 65.0f;
+    float lineW = 200.0f;
+    DrawGradientUnderline(drawList, ImVec2(centerX - lineW * 0.5f, lineY), ImVec2(centerX + lineW * 0.5f, lineY),
+                          IM_COL32(238, 142, 164, 220), IM_COL32(140, 212, 198, 200));
+
+    // Animated text: waiting for game....
+    int dotsCount = ((int)(time * 2.5f)) % 4;
+    std::string waitText = "waiting for game" + std::string(dotsCount + 1, '.');
+    if (m_fontRegular) ImGui::PushFont(m_fontRegular);
+    ImVec2 waitSize = ImGui::CalcTextSize(waitText.c_str());
+    drawList->AddText(ImVec2(centerX - waitSize.x * 0.5f, lineY + 16.0f), IM_COL32(160, 165, 180, 255), waitText.c_str());
+    if (m_fontRegular) ImGui::PopFont();
+
+    // Cancel Button
+    float btnW = 120.0f;
+    float btnH = 32.0f;
+    ImGui::SetCursorScreenPos(ImVec2(centerX - btnW * 0.5f, winSize.y - 65.0f));
+    if (PrimordialButton("Cancel", ImVec2(btnW, btnH), false, false)) {
+        m_isWaitingForGame = false;
+        m_isInjecting = false;
+    }
+}
+
+// Modal for Automatic Loader Updates
 void VibeUI::RenderUpdateModal() {
     ImVec2 dispSize = ImGui::GetIO().DisplaySize;
-    ImVec2 modalSize(480, 190);
+    ImVec2 modalSize(450, 180);
     ImVec2 modalPos((dispSize.x - modalSize.x) * 0.5f, (dispSize.y - modalSize.y) * 0.5f);
 
     ImDrawList* drawList = ImGui::GetWindowDrawList();
@@ -766,43 +587,37 @@ void VibeUI::RenderUpdateModal() {
     // Dark backdrop overlay
     drawList->AddRectFilled(ImVec2(0, 0), dispSize, IM_COL32(0, 0, 0, 215));
 
-    // 3D Card for Update Modal
-    Draw3DCard(drawList, modalPos, ImVec2(modalPos.x + modalSize.x, modalPos.y + modalSize.y),
-               IM_COL32(32, 38, 54, 255), IM_COL32(18, 22, 31, 255), 
-               IM_COL32(255, 43, 75, 220), 12.0f, true, IM_COL32(255, 43, 75, 130), 1.5f);
+    // Flat Card for Update Modal
+    DrawFlatCard(drawList, modalPos, ImVec2(modalPos.x + modalSize.x, modalPos.y + modalSize.y),
+                 IM_COL32(22, 23, 29, 255), IM_COL32(238, 142, 164, 200), 10.0f);
 
     // Place ImGui cursor inside modal
-    ImGui::SetCursorScreenPos(ImVec2(modalPos.x + 22, modalPos.y + 20));
+    ImGui::SetCursorScreenPos(ImVec2(modalPos.x + 24, modalPos.y + 20));
     if (m_fontBold) ImGui::PushFont(m_fontBold);
-    ImGui::TextColored(ImVec4(1.0f, 1.0f, 1.0f, 1.0f), "Updating NeoNirvana Client...");
+    ImGui::TextColored(ImVec4(0.933f, 0.557f, 0.643f, 1.0f), "Updating Loader Client...");
     if (m_fontBold) ImGui::PopFont();
 
-    ImGui::SetCursorScreenPos(ImVec2(modalPos.x + 22, modalPos.y + 50));
+    ImGui::SetCursorScreenPos(ImVec2(modalPos.x + 24, modalPos.y + 48));
     std::string msg = m_updater.GetStatusMessage();
     ImGui::TextColored(ImVec4(0.80f, 0.85f, 0.95f, 1.0f), msg.c_str());
 
-    // Glowing Animated Progress Bar
-    float barX = modalPos.x + 22.0f;
-    float barY = modalPos.y + 84.0f;
-    float barW = modalSize.x - 44.0f;
-    float barH = 16.0f;
+    // Progress Bar
+    float barX = modalPos.x + 24.0f;
+    float barY = modalPos.y + 82.0f;
+    float barW = modalSize.x - 48.0f;
+    float barH = 12.0f;
 
-    drawList->AddRectFilled(ImVec2(barX, barY), ImVec2(barX + barW, barY + barH), IM_COL32(14, 16, 22, 255), 7.0f);
-    drawList->AddRect(ImVec2(barX, barY), ImVec2(barX + barW, barY + barH), IM_COL32(55, 65, 88, 255), 7.0f);
+    drawList->AddRectFilled(ImVec2(barX, barY), ImVec2(barX + barW, barY + barH), IM_COL32(14, 15, 20, 255), 6.0f);
+    drawList->AddRect(ImVec2(barX, barY), ImVec2(barX + barW, barY + barH), IM_COL32(45, 48, 60, 255), 6.0f);
 
     float progress = m_updater.GetProgress();
     float fillW = barW * std::clamp(progress, 0.05f, 1.0f);
-    drawList->AddRectFilledMultiColor(ImVec2(barX, barY), ImVec2(barX + fillW, barY + barH),
-                                      IM_COL32(255, 60, 95, 255), IM_COL32(255, 60, 95, 255),
-                                      IM_COL32(200, 20, 50, 255), IM_COL32(200, 20, 50, 255));
-    DrawGlow(drawList, ImVec2(barX, barY), ImVec2(barX + fillW, barY + barH), 
-             IM_COL32(255, 43, 75, 160), 7.0f, 6.0f, 3);
+    drawList->AddRectFilled(ImVec2(barX, barY), ImVec2(barX + fillW, barY + barH), IM_COL32(238, 142, 164, 255), 6.0f);
 
-    ImGui::SetCursorScreenPos(ImVec2(modalPos.x + modalSize.x - 135.0f, modalPos.y + 128.0f));
+    ImGui::SetCursorScreenPos(ImVec2(modalPos.x + modalSize.x - 130.0f, modalPos.y + 124.0f));
     bool isFinished = (!m_updater.IsBusy() && m_updater.GetState() != UpdaterState::Checking && m_updater.GetState() != UpdaterState::Downloading);
 
-    if (GlowingButton(isFinished ? "Restart" : "Dismiss", ImVec2(115, 34), 
-                      IM_COL32(42, 50, 70, 255), IM_COL32(200, 25, 60, 255), IM_COL32(255, 43, 75, 100))) {
+    if (PrimordialButton(isFinished ? "Restart" : "Dismiss", ImVec2(106, 32), isFinished, isFinished)) {
         if (!isFinished) {
             m_updater.Cancel();
         }
@@ -814,36 +629,35 @@ void VibeUI::RenderUpdateModal() {
 // Running Process Browser Modal
 void VibeUI::RenderProcessPickerModal() {
     ImVec2 dispSize = ImGui::GetIO().DisplaySize;
-    ImVec2 modalSize(540, 460);
+    ImVec2 modalSize(500, 380);
     ImVec2 modalPos((dispSize.x - modalSize.x) * 0.5f, (dispSize.y - modalSize.y) * 0.5f);
 
     ImDrawList* drawList = ImGui::GetWindowDrawList();
     drawList->AddRectFilled(ImVec2(0, 0), dispSize, IM_COL32(0, 0, 0, 215));
 
-    Draw3DCard(drawList, modalPos, ImVec2(modalPos.x + modalSize.x, modalPos.y + modalSize.y),
-               IM_COL32(32, 38, 54, 255), IM_COL32(18, 22, 31, 255), 
-               IM_COL32(255, 43, 75, 220), 12.0f, true, IM_COL32(255, 43, 75, 130), 1.5f);
+    DrawFlatCard(drawList, modalPos, ImVec2(modalPos.x + modalSize.x, modalPos.y + modalSize.y),
+                 IM_COL32(22, 23, 29, 255), IM_COL32(238, 142, 164, 180), 10.0f);
 
     ImGui::SetCursorScreenPos(ImVec2(modalPos.x + 20, modalPos.y + 18));
     ImGui::BeginChild("##PickerContent", ImVec2(modalSize.x - 40, modalSize.y - 36), false, ImGuiWindowFlags_NoBackground);
 
     if (m_fontBold) ImGui::PushFont(m_fontBold);
-    ImGui::TextColored(ImVec4(0.95f, 0.96f, 0.98f, 1.0f), "Select Running Target Process");
+    ImGui::TextColored(ImVec4(0.933f, 0.557f, 0.643f, 1.0f), "Select Running Target Process");
     if (m_fontBold) ImGui::PopFont();
     ImGui::Separator();
 
     ImGui::Spacing();
-    ImGui::SetNextItemWidth(350);
+    ImGui::SetNextItemWidth(320);
     ImGui::InputTextWithHint("##FilterProc", "Search process name...", m_bufProcessSearch, sizeof(m_bufProcessSearch));
     ImGui::SameLine(0, 10.0f);
-    if (GlowingButton("Refresh", ImVec2(110, 26), IM_COL32(38, 46, 64, 255), IM_COL32(190, 25, 60, 255), IM_COL32(255, 43, 75, 80))) {
+    if (PrimordialButton("Refresh", ImVec2(100, 26), false, false)) {
         m_cachedProcessList = Memory::GetProcessList();
     }
 
     ImGui::Spacing();
 
     // Process List
-    ImGui::BeginChild("##ProcListScroll", ImVec2(modalSize.x - 40, 290), true);
+    ImGui::BeginChild("##ProcListScroll", ImVec2(modalSize.x - 40, 210), true);
 
     std::string search = m_bufProcessSearch;
     std::transform(search.begin(), search.end(), search.begin(), ::tolower);
@@ -872,9 +686,68 @@ void VibeUI::RenderProcessPickerModal() {
     ImGui::EndChild();
 
     ImGui::Spacing();
-    ImGui::SetCursorPosX(modalSize.x - 40 - 120);
-    if (GlowingButton("Close", ImVec2(120, 32), IM_COL32(42, 50, 70, 255), IM_COL32(190, 25, 55, 255), IM_COL32(255, 43, 75, 90))) {
+    ImGui::SetCursorPosX(modalSize.x - 40 - 100);
+    if (PrimordialButton("Close", ImVec2(100, 30), false, false)) {
         m_showProcessPicker = false;
+    }
+
+    ImGui::EndChild();
+}
+
+// Profile Switcher Modal
+void VibeUI::RenderProfilePickerModal() {
+    ImVec2 dispSize = ImGui::GetIO().DisplaySize;
+    ImVec2 modalSize(420, 300);
+    ImVec2 modalPos((dispSize.x - modalSize.x) * 0.5f, (dispSize.y - modalSize.y) * 0.5f);
+
+    ImDrawList* drawList = ImGui::GetWindowDrawList();
+    drawList->AddRectFilled(ImVec2(0, 0), dispSize, IM_COL32(0, 0, 0, 215));
+
+    DrawFlatCard(drawList, modalPos, ImVec2(modalPos.x + modalSize.x, modalPos.y + modalSize.y),
+                 IM_COL32(22, 23, 29, 255), IM_COL32(238, 142, 164, 180), 10.0f);
+
+    ImGui::SetCursorScreenPos(ImVec2(modalPos.x + 20, modalPos.y + 18));
+    ImGui::BeginChild("##ProfileContent", ImVec2(modalSize.x - 40, modalSize.y - 36), false, ImGuiWindowFlags_NoBackground);
+
+    if (m_fontBold) ImGui::PushFont(m_fontBold);
+    ImGui::TextColored(ImVec4(0.933f, 0.557f, 0.643f, 1.0f), "Select Target Profile");
+    if (m_fontBold) ImGui::PopFont();
+    ImGui::Separator();
+
+    ImGui::Spacing();
+
+    auto& settings = ConfigManager::Get().Settings();
+    for (int i = 0; i < (int)settings.profiles.size(); ++i) {
+        bool isSelected = (settings.activeProfileIndex == i);
+        std::string label = settings.profiles[i].name;
+        if (ImGui::Selectable(label.c_str(), isSelected, 0, ImVec2(0, 28.0f))) {
+            settings.activeProfileIndex = i;
+            auto& activeP = ConfigManager::Get().GetActiveProfile();
+            strcpy_s(m_bufProcessName, sizeof(m_bufProcessName), activeP.exeName.c_str());
+            strcpy_s(m_bufDllPath, sizeof(m_bufDllPath), activeP.dllPath.c_str());
+            strcpy_s(m_bufGithubRepo, sizeof(m_bufGithubRepo), activeP.githubRepo.c_str());
+            strcpy_s(m_bufDirectUrl, sizeof(m_bufDirectUrl), activeP.directUrl.c_str());
+            ConfigManager::Get().Save();
+            m_showProfilePicker = false;
+        }
+    }
+
+    ImGui::Spacing();
+    if (PrimordialButton("+ Add Profile", ImVec2(120, 28), false, false)) {
+        TargetProfile customP;
+        customP.name = "Custom Game " + std::to_string(settings.profiles.size() + 1);
+        customP.exeName = "game.exe";
+        customP.dllPath = "payloads/custom.dll";
+        customP.version = "v1.0";
+        customP.statusText = "Undetected";
+        settings.profiles.push_back(customP);
+        settings.activeProfileIndex = (int)settings.profiles.size() - 1;
+        ConfigManager::Get().Save();
+    }
+
+    ImGui::SameLine(modalSize.x - 40 - 90);
+    if (PrimordialButton("Close", ImVec2(90, 28), false, false)) {
+        m_showProfilePicker = false;
     }
 
     ImGui::EndChild();

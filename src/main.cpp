@@ -22,8 +22,8 @@ static ID3D11DeviceContext*     g_pd3dDeviceContext = nullptr;
 static IDXGISwapChain*          g_pSwapChain = nullptr;
 static UINT                     g_ResizeWidth = 0, g_ResizeHeight = 0;
 static ID3D11RenderTargetView*  g_mainRenderTargetView = nullptr;
-const int                       g_WinWidth = 820;
-const int                       g_WinHeight = 580;
+const int                       g_WinWidth = 660;
+const int                       g_WinHeight = 440;
 
 bool CreateDeviceD3D(HWND hWnd);
 void CleanupDeviceD3D();

@@ -19,7 +19,7 @@ set INCLUDES=/Isrc /Iimgui /Iimgui\backends
 set SOURCES=src\main.cpp src\ui.cpp src\injection.cpp src\updater.cpp src\config.cpp imgui\imgui.cpp imgui\imgui_draw.cpp imgui\imgui_tables.cpp imgui\imgui_widgets.cpp imgui\backends\imgui_impl_win32.cpp imgui\backends\imgui_impl_dx11.cpp
 set LIBS=d3d11.lib dxgi.lib dwmapi.lib user32.lib gdi32.lib comctl32.lib ole32.lib shell32.lib wininet.lib advapi32.lib
 set CFLAGS=/nologo /O2 /MD /utf-8 /std:c++17 /EHsc /D UNICODE /D _UNICODE /D NDEBUG
-set LFLAGS=/link /SUBSYSTEM:WINDOWS /MANIFESTUAC:"level='requireAdministrator' uiAccess='false'" /OUT:bin\NeoNirvana.exe
+set LFLAGS=/link /SUBSYSTEM:WINDOWS /MANIFESTUAC:"level='asInvoker' uiAccess='false'" /OUT:bin\NeoNirvana.exe
 
 echo Compiling sources...
 cl %CFLAGS% %INCLUDES% %SOURCES% %LIBS% %LFLAGS%
