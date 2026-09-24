@@ -134,6 +134,9 @@ bool ConfigManager::Load(const std::string& filePath) {
     std::string loaderVer = ExtractJsonValue(json, "loaderVersion");
     if (!loaderVer.empty()) m_settings.loaderVersion = loaderVer;
 
+    std::string ghToken = ExtractJsonValue(json, "githubToken");
+    if (!ghToken.empty()) m_settings.githubToken = ghToken;
+
     // Parse profiles array
     size_t profilesPos = json.find("\"profiles\":");
     if (profilesPos != std::string::npos) {
@@ -192,6 +195,9 @@ bool ConfigManager::Save(const std::string& filePath) {
     out << "  \"autoCheckUpdates\": " << (m_settings.autoCheckUpdates ? "true" : "false") << ",\n";
     out << "  \"loaderGithubRepo\": \"" << JsonEscape(m_settings.loaderGithubRepo) << "\",\n";
     out << "  \"loaderVersion\": \"" << JsonEscape(m_settings.loaderVersion) << "\",\n";
+    if (!m_settings.githubToken.empty()) {
+        out << "  \"githubToken\": \"" << JsonEscape(m_settings.githubToken) << "\",\n";
+    }
     out << "  \"profiles\": [\n";
 
     for (size_t i = 0; i < m_settings.profiles.size(); ++i) {

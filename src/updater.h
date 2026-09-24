@@ -2,6 +2,7 @@
 
 #include <string>
 #include <vector>
+#include "version.h"
 #include <atomic>
 #include <thread>
 #include <mutex>

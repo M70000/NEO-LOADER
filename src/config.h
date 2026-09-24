@@ -24,6 +24,7 @@ struct LoaderSettings {
     std::string subscriptionExpiry = "30 Days";
     std::string loaderGithubRepo = "M70000/NEO-LOADER";
     std::string loaderVersion = "v1.0.0";
+    std::string githubToken = "";
     std::vector<TargetProfile> profiles;
 };
 

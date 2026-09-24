@@ -1,15 +1,31 @@
 #define NOMINMAX
 #include "updater.h"
+#include "config.h"
 #include <Windows.h>
 #include <wininet.h>
+#include <wincrypt.h>
 #include <fstream>
 #include <sstream>
 #include <filesystem>
 #include <algorithm>
 
 #pragma comment(lib, "wininet.lib")
+#pragma comment(lib, "crypt32.lib")
 
 namespace fs = std::filesystem;
+
+static std::string GetGithubAuthToken() {
+    std::string token = ConfigManager::Get().Settings().githubToken;
+    if (!token.empty()) return token;
+
+    char* envToken = getenv("GITHUB_TOKEN");
+    if (envToken && strlen(envToken) > 0) return std::string(envToken);
+
+    char* envGh = getenv("GH_TOKEN");
+    if (envGh && strlen(envGh) > 0) return std::string(envGh);
+
+    return "";
+}
 
 DllUpdater::DllUpdater()
     : m_state(UpdaterState::Idle)
@@ -127,11 +143,17 @@ bool DllUpdater::DownloadFile(const std::string& url, const std::string& destPat
     }
 
     DWORD flags = INTERNET_FLAG_RELOAD | INTERNET_FLAG_DONT_CACHE | INTERNET_FLAG_PRAGMA_NOCACHE | INTERNET_FLAG_SECURE;
-    HINTERNET hUrl = InternetOpenUrlA(hInternet, url.c_str(), "User-Agent: NeoNirvana-Updater/1.0\r\n", -1, flags, 0);
+    std::string token = GetGithubAuthToken();
+    std::string headers = "User-Agent: NeoNirvana-Updater/1.0\r\n";
+    if (!token.empty() && url.find("github") != std::string::npos) {
+        headers += "Authorization: token " + token + "\r\n";
+    }
+
+    HINTERNET hUrl = InternetOpenUrlA(hInternet, url.c_str(), headers.c_str(), -1, flags, 0);
     if (!hUrl) {
         if (url.find("https://") == std::string::npos) {
             flags &= ~INTERNET_FLAG_SECURE;
-            hUrl = InternetOpenUrlA(hInternet, url.c_str(), "User-Agent: NeoNirvana-Updater/1.0\r\n", -1, flags, 0);
+            hUrl = InternetOpenUrlA(hInternet, url.c_str(), headers.c_str(), -1, flags, 0);
         }
     }
 
@@ -245,8 +267,12 @@ void DllUpdater::WorkerThreadDll(UpdateConfig config) {
         HINTERNET hInternet = InternetOpenA("NeoNirvana-Updater/1.0", INTERNET_OPEN_TYPE_PRECONFIG, NULL, NULL, 0);
         if (hInternet) {
             DWORD flags = INTERNET_FLAG_RELOAD | INTERNET_FLAG_DONT_CACHE | INTERNET_FLAG_SECURE;
-            const char* headers = "User-Agent: NeoNirvana-Updater/1.0\r\nAccept: application/vnd.github.v3+json\r\n";
-            HINTERNET hUrl = InternetOpenUrlA(hInternet, apiUrl.c_str(), headers, -1, flags, 0);
+            std::string token = GetGithubAuthToken();
+            std::string headers = "User-Agent: NeoNirvana-Updater/1.0\r\nAccept: application/vnd.github.v3+json\r\n";
+            if (!token.empty()) {
+                headers += "Authorization: token " + token + "\r\n";
+            }
+            HINTERNET hUrl = InternetOpenUrlA(hInternet, apiUrl.c_str(), headers.c_str(), -1, flags, 0);
 
             if (hUrl) {
                 std::string jsonResponse;
@@ -345,42 +371,158 @@ void DllUpdater::CheckLoaderUpdateAsync(const std::string& repo, const std::stri
     m_worker = std::thread(&DllUpdater::WorkerThreadLoaderCheck, this, repo, currentVersion);
 }
 
-void DllUpdater::WorkerThreadLoaderCheck(std::string repo, std::string currentVersion) {
-    std::string apiUrl = "https://api.github.com/repos/" + repo + "/releases/latest";
-    HINTERNET hInternet = InternetOpenA("NeoNirvana-LoaderUpdater/1.0", INTERNET_OPEN_TYPE_PRECONFIG, NULL, NULL, 0);
-    if (!hInternet) {
-        m_isBusy = false;
-        return;
+static std::string FetchUrlText(const std::string& url) {
+    HINTERNET hInternet = InternetOpenA("NeoNirvana-Updater/1.0", INTERNET_OPEN_TYPE_PRECONFIG, NULL, NULL, 0);
+    if (!hInternet) return "";
+
+    std::string token = GetGithubAuthToken();
+    std::string headers = "User-Agent: NeoNirvana-Updater/1.0\r\n";
+    if (!token.empty() && url.find("github") != std::string::npos) {
+        headers += "Authorization: token " + token + "\r\n";
     }
 
-    DWORD flags = INTERNET_FLAG_RELOAD | INTERNET_FLAG_DONT_CACHE | INTERNET_FLAG_SECURE;
-    const char* headers = "User-Agent: NeoNirvana-LoaderUpdater/1.0\r\nAccept: application/vnd.github.v3+json\r\n";
-    HINTERNET hUrl = InternetOpenUrlA(hInternet, apiUrl.c_str(), headers, -1, flags, 0);
+    DWORD flags = INTERNET_FLAG_RELOAD | INTERNET_FLAG_DONT_CACHE | INTERNET_FLAG_PRAGMA_NOCACHE | INTERNET_FLAG_SECURE;
+    HINTERNET hUrl = InternetOpenUrlA(hInternet, url.c_str(), headers.c_str(), -1, flags, 0);
+    if (!hUrl) {
+        if (url.find("https://") == std::string::npos) {
+            flags &= ~INTERNET_FLAG_SECURE;
+            hUrl = InternetOpenUrlA(hInternet, url.c_str(), headers.c_str(), -1, flags, 0);
+        }
+    }
+
+    if (!hUrl) {
+        InternetCloseHandle(hInternet);
+        return "";
+    }
+
+    std::string result;
+    char buf[1024];
+    DWORD read = 0;
+    while (InternetReadFile(hUrl, buf, sizeof(buf), &read) && read > 0) {
+        result.append(buf, read);
+    }
+
+    InternetCloseHandle(hUrl);
+    InternetCloseHandle(hInternet);
+
+    while (!result.empty() && (result.back() == '\r' || result.back() == '\n' || result.back() == ' ' || result.back() == '\t')) {
+        result.pop_back();
+    }
+    while (!result.empty() && (result.front() == '\r' || result.front() == '\n' || result.front() == ' ' || result.front() == '\t')) {
+        result.erase(result.begin());
+    }
+
+    return result;
+}
+
+void DllUpdater::WorkerThreadLoaderCheck(std::string repo, std::string currentVersion) {
+    std::string effectiveCurrentVersion = currentVersion.empty() ? LOADER_VERSION_TAG : currentVersion;
+    if (!effectiveCurrentVersion.empty() && (effectiveCurrentVersion.front() == 'v' || effectiveCurrentVersion.front() == 'V')) {
+        effectiveCurrentVersion.erase(effectiveCurrentVersion.begin());
+    }
 
     std::string foundVersion = "";
     std::string exeDownloadUrl = "";
 
-    if (hUrl) {
-        std::string jsonResponse;
-        char buf[8192];
-        DWORD read = 0;
-        while (InternetReadFile(hUrl, buf, sizeof(buf), &read) && read > 0) {
-            jsonResponse.append(buf, read);
-        }
-        InternetCloseHandle(hUrl);
+    // 1. Try pulling directly from repo bin folder (bin/version.txt) on main branch
+    std::vector<std::string> versionUrls = {
+        "https://raw.githubusercontent.com/" + repo + "/main/bin/version.txt",
+        "https://raw.githubusercontent.com/" + repo + "/main/version.txt",
+        "https://raw.githubusercontent.com/" + repo + "/master/bin/version.txt"
+    };
 
-        if (!jsonResponse.empty()) {
-            foundVersion = ExtractJsonField(jsonResponse, "tag_name");
-            exeDownloadUrl = ExtractAssetUrl(jsonResponse, ".exe");
+    for (const auto& vUrl : versionUrls) {
+        std::string v = FetchUrlText(vUrl);
+        if (!v.empty() && v.find("404") == std::string::npos && v.find("Not Found") == std::string::npos) {
+            foundVersion = v;
+            exeDownloadUrl = "https://raw.githubusercontent.com/" + repo + "/main/bin/NeoNirvana.exe";
+            break;
         }
     }
-    InternetCloseHandle(hInternet);
 
-    // If new version found and differs from current version
-    if (!foundVersion.empty() && foundVersion != currentVersion && !exeDownloadUrl.empty()) {
+    // 2. If raw URL failed, query GitHub Contents API (supports token / private repositories)
+    if (foundVersion.empty()) {
+        std::string token = GetGithubAuthToken();
+        std::string apiUrl = "https://api.github.com/repos/" + repo + "/contents/bin/version.txt";
+        HINTERNET hInternet = InternetOpenA("NeoNirvana-LoaderUpdater/1.0", INTERNET_OPEN_TYPE_PRECONFIG, NULL, NULL, 0);
+        if (hInternet) {
+            DWORD flags = INTERNET_FLAG_RELOAD | INTERNET_FLAG_DONT_CACHE | INTERNET_FLAG_SECURE;
+            std::string headers = "User-Agent: NeoNirvana-LoaderUpdater/1.0\r\nAccept: application/vnd.github.v3+json\r\n";
+            if (!token.empty()) {
+                headers += "Authorization: token " + token + "\r\n";
+            }
+            HINTERNET hUrl = InternetOpenUrlA(hInternet, apiUrl.c_str(), headers.c_str(), -1, flags, 0);
+            if (hUrl) {
+                std::string jsonResponse;
+                char buf[8192];
+                DWORD read = 0;
+                while (InternetReadFile(hUrl, buf, sizeof(buf), &read) && read > 0) {
+                    jsonResponse.append(buf, read);
+                }
+                InternetCloseHandle(hUrl);
+
+                std::string b64Content = ExtractJsonField(jsonResponse, "content");
+                b64Content.erase(std::remove(b64Content.begin(), b64Content.end(), '\n'), b64Content.end());
+                b64Content.erase(std::remove(b64Content.begin(), b64Content.end(), '\r'), b64Content.end());
+
+                if (!b64Content.empty()) {
+                    DWORD decodedLen = 0;
+                    if (CryptStringToBinaryA(b64Content.c_str(), 0, CRYPT_STRING_BASE64, NULL, &decodedLen, NULL, NULL) && decodedLen > 0) {
+                        std::vector<char> dec(decodedLen + 1, 0);
+                        if (CryptStringToBinaryA(b64Content.c_str(), 0, CRYPT_STRING_BASE64, (BYTE*)dec.data(), &decodedLen, NULL, NULL)) {
+                            std::string vStr(dec.data(), decodedLen);
+                            while (!vStr.empty() && (vStr.back() == '\r' || vStr.back() == '\n' || vStr.back() == ' ')) vStr.pop_back();
+                            foundVersion = vStr;
+                            exeDownloadUrl = "https://raw.githubusercontent.com/" + repo + "/main/bin/NeoNirvana.exe";
+                        }
+                    }
+                }
+            }
+            InternetCloseHandle(hInternet);
+        }
+    }
+
+    // 3. Fallback to GitHub Releases API if version.txt was not available
+    if (foundVersion.empty()) {
+        std::string token = GetGithubAuthToken();
+        std::string apiUrl = "https://api.github.com/repos/" + repo + "/releases/latest";
+        HINTERNET hInternet = InternetOpenA("NeoNirvana-LoaderUpdater/1.0", INTERNET_OPEN_TYPE_PRECONFIG, NULL, NULL, 0);
+        if (hInternet) {
+            DWORD flags = INTERNET_FLAG_RELOAD | INTERNET_FLAG_DONT_CACHE | INTERNET_FLAG_SECURE;
+            std::string headers = "User-Agent: NeoNirvana-LoaderUpdater/1.0\r\nAccept: application/vnd.github.v3+json\r\n";
+            if (!token.empty()) {
+                headers += "Authorization: token " + token + "\r\n";
+            }
+            HINTERNET hUrl = InternetOpenUrlA(hInternet, apiUrl.c_str(), headers.c_str(), -1, flags, 0);
+
+            if (hUrl) {
+                std::string jsonResponse;
+                char buf[8192];
+                DWORD read = 0;
+                while (InternetReadFile(hUrl, buf, sizeof(buf), &read) && read > 0) {
+                    jsonResponse.append(buf, read);
+                }
+                InternetCloseHandle(hUrl);
+
+                if (!jsonResponse.empty()) {
+                    foundVersion = ExtractJsonField(jsonResponse, "tag_name");
+                    exeDownloadUrl = ExtractAssetUrl(jsonResponse, ".exe");
+                }
+            }
+            InternetCloseHandle(hInternet);
+        }
+    }
+
+    // Compare versions (clean 'v' prefixes for flexible match)
+    std::string compareFound = foundVersion;
+    if (!compareFound.empty() && (compareFound.front() == 'v' || compareFound.front() == 'V')) {
+        compareFound.erase(compareFound.begin());
+    }
+
+    if (!compareFound.empty() && compareFound != effectiveCurrentVersion && !exeDownloadUrl.empty()) {
         {
             std::lock_guard<std::mutex> lock(m_mutex);
-            m_statusMsg = "Nova versão do loader disponível: " + foundVersion;
+            m_statusMsg = "Nova versao do loader disponivel: " + foundVersion;
             m_latestVersion = foundVersion;
             m_pendingExeUrl = exeDownloadUrl;
         }
@@ -390,7 +532,7 @@ void DllUpdater::WorkerThreadLoaderCheck(std::string repo, std::string currentVe
     }
     else {
         std::lock_guard<std::mutex> lock(m_mutex);
-        m_statusMsg = "O loader está na versão mais recente.";
+        m_statusMsg = "O loader esta na versao mais recente (" + std::string(LOADER_VERSION_TAG) + ").";
         m_state = UpdaterState::UpToDate;
     }
 
@@ -430,9 +572,13 @@ void DllUpdater::WorkerThreadLoaderDownload() {
         return;
     }
 
-    std::string newExePath = "bin/NeoNirvana_new.exe";
+    char currentExePath[MAX_PATH] = { 0 };
+    GetModuleFileNameA(NULL, currentExePath, MAX_PATH);
+    fs::path currentPath(currentExePath);
+    fs::path newExePath = currentPath.parent_path() / "NeoNirvana_new.exe";
+
     std::string err;
-    bool ok = DownloadFile(downloadUrl, newExePath, m_progress, m_cancel, err);
+    bool ok = DownloadFile(downloadUrl, newExePath.string(), m_progress, m_cancel, err);
 
     if (ok) {
         std::lock_guard<std::mutex> lock(m_mutex);
@@ -449,15 +595,28 @@ void DllUpdater::WorkerThreadLoaderDownload() {
 }
 
 void DllUpdater::ApplyAndRestart() {
+    char currentExePath[MAX_PATH] = { 0 };
+    GetModuleFileNameA(NULL, currentExePath, MAX_PATH);
+    fs::path currentPath(currentExePath);
+    fs::path newPath = currentPath.parent_path() / "NeoNirvana_new.exe";
+
+    if (fs::exists(newPath)) {
+        // cmd script to wait 1s, overwrite old exe, and restart it cleanly
+        std::string cmd = "cmd.exe /c timeout /t 1 /nobreak >nul & move /y \"" + newPath.string() + "\" \"" + currentPath.string() + "\" & start \"\" \"" + currentPath.string() + "\"";
+        STARTUPINFOA si = { sizeof(si) };
+        PROCESS_INFORMATION pi = { 0 };
+        if (CreateProcessA(NULL, (LPSTR)cmd.c_str(), NULL, NULL, FALSE, CREATE_NO_WINDOW, NULL, NULL, &si, &pi)) {
+            CloseHandle(pi.hProcess);
+            CloseHandle(pi.hThread);
+            ExitProcess(0);
+        }
+    }
+
+    // Direct run fallback
     STARTUPINFOA si = { sizeof(si) };
     PROCESS_INFORMATION pi = { 0 };
-
-    if (CreateProcessA("bin/NeoNirvana_new.exe", NULL, NULL, NULL, FALSE, 0, NULL, NULL, &si, &pi)) {
-        CloseHandle(pi.hProcess);
-        CloseHandle(pi.hThread);
-        ExitProcess(0);
-    }
-    else if (CreateProcessA("NeoNirvana_new.exe", NULL, NULL, NULL, FALSE, 0, NULL, NULL, &si, &pi)) {
+    std::string runTarget = fs::exists(newPath) ? newPath.string() : currentPath.string();
+    if (CreateProcessA(runTarget.c_str(), NULL, NULL, NULL, FALSE, 0, NULL, NULL, &si, &pi)) {
         CloseHandle(pi.hProcess);
         CloseHandle(pi.hThread);
         ExitProcess(0);

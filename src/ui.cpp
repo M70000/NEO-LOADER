@@ -47,7 +47,7 @@ void VibeUI::Initialize() {
     // Check loader update in background silently (only shows modal if a newer loader version is found)
     auto& settings = ConfigManager::Get().Settings();
     if (!settings.loaderGithubRepo.empty()) {
-        m_updater.CheckLoaderUpdateAsync(settings.loaderGithubRepo, settings.loaderVersion);
+        m_updater.CheckLoaderUpdateAsync(settings.loaderGithubRepo, LOADER_VERSION_TAG);
     }
 
     m_showUpdateModal = false;
@@ -527,15 +527,15 @@ void VibeUI::RenderPrimordialDashboard() {
 
     // Lightbulb / Clock icon
     drawList->AddCircleFilled(ImVec2(b2Min.x + 24.0f, b2Min.y + 24.0f), 6.0f, IM_COL32(238, 142, 164, 220));
-    drawList->AddText(ImVec2(b2Min.x + 42.0f, b2Min.y + 14.0f), IM_COL32(150, 155, 170, 255), "Last Update:");
-    drawList->AddText(ImVec2(b2Min.x + 42.0f, b2Min.y + 36.0f), IM_COL32(235, 235, 240, 255), "24.09.2026 AT 11:40");
+    drawList->AddText(ImVec2(b2Min.x + 42.0f, b2Min.y + 14.0f), IM_COL32(150, 155, 170, 255), "Loader Version:");
+    drawList->AddText(ImVec2(b2Min.x + 42.0f, b2Min.y + 36.0f), IM_COL32(235, 235, 240, 255), ("v" + std::string(LOADER_VERSION_TAG)).c_str());
 
     // Clickable Check button on Block 2 to re-check GitHub
     ImGui::SetCursorScreenPos(ImVec2(b2Max.x - 72.0f, b2Min.y + 18.0f));
     if (PrimordialButton("Check", ImVec2(58, 26), false, false)) {
         auto& s = ConfigManager::Get().Settings();
         if (!s.loaderGithubRepo.empty()) {
-            m_updater.CheckLoaderUpdateAsync(s.loaderGithubRepo, s.loaderVersion);
+            m_updater.CheckLoaderUpdateAsync(s.loaderGithubRepo, LOADER_VERSION_TAG);
         }
     }
 
