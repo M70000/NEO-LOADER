@@ -530,6 +530,15 @@ void VibeUI::RenderPrimordialDashboard() {
     drawList->AddText(ImVec2(b2Min.x + 42.0f, b2Min.y + 14.0f), IM_COL32(150, 155, 170, 255), "Last Update:");
     drawList->AddText(ImVec2(b2Min.x + 42.0f, b2Min.y + 36.0f), IM_COL32(235, 235, 240, 255), "24.09.2026 AT 11:40");
 
+    // Clickable Check button on Block 2 to re-check GitHub
+    ImGui::SetCursorScreenPos(ImVec2(b2Max.x - 72.0f, b2Min.y + 18.0f));
+    if (PrimordialButton("Check", ImVec2(58, 26), false, false)) {
+        auto& s = ConfigManager::Get().Settings();
+        if (!s.loaderGithubRepo.empty()) {
+            m_updater.CheckLoaderUpdateAsync(s.loaderGithubRepo, s.loaderVersion);
+        }
+    }
+
     // --- Block 3: Cheat Status (Bottom-Left) ---
     ImVec2 b3Min(lineStartX, gridTopY + rowH + 12.0f);
     ImVec2 b3Max(lineStartX + colW, gridTopY + rowH * 2.0f + 12.0f);
@@ -648,10 +657,10 @@ void VibeUI::RenderWaitingForGameScreen() {
     }
 }
 
-// Modal for Automatic Loader Updates
+// Modal for Automatic Loader Updates with ATUALIZAR button
 void VibeUI::RenderUpdateModal() {
     ImVec2 dispSize = ImGui::GetIO().DisplaySize;
-    ImVec2 modalSize(450, 180);
+    ImVec2 modalSize(460, 200);
     ImVec2 modalPos((dispSize.x - modalSize.x) * 0.5f, (dispSize.y - modalSize.y) * 0.5f);
 
     ImDrawList* drawList = ImGui::GetWindowDrawList();
@@ -663,38 +672,102 @@ void VibeUI::RenderUpdateModal() {
     DrawFlatCard(drawList, modalPos, ImVec2(modalPos.x + modalSize.x, modalPos.y + modalSize.y),
                  IM_COL32(22, 23, 29, 255), IM_COL32(238, 142, 164, 200), 10.0f);
 
-    // Place ImGui cursor inside modal
-    ImGui::SetCursorScreenPos(ImVec2(modalPos.x + 24, modalPos.y + 20));
-    if (m_fontBold) ImGui::PushFont(m_fontBold);
-    ImGui::TextColored(ImVec4(0.933f, 0.557f, 0.643f, 1.0f), "Updating Loader Client...");
-    if (m_fontBold) ImGui::PopFont();
+    UpdaterState state = m_updater.GetState();
 
-    ImGui::SetCursorScreenPos(ImVec2(modalPos.x + 24, modalPos.y + 48));
-    std::string msg = m_updater.GetStatusMessage();
-    ImGui::TextColored(ImVec4(0.80f, 0.85f, 0.95f, 1.0f), msg.c_str());
+    if (state == UpdaterState::UpdateAvailable) {
+        // --- STAGE 1: Update Detected Notice with ATUALIZAR button ---
+        ImGui::SetCursorScreenPos(ImVec2(modalPos.x + 24, modalPos.y + 20));
+        if (m_fontBold) ImGui::PushFont(m_fontBold);
+        ImGui::TextColored(ImVec4(0.933f, 0.557f, 0.643f, 1.0f), "Nova Atualizacao Disponivel!");
+        if (m_fontBold) ImGui::PopFont();
 
-    // Progress Bar
-    float barX = modalPos.x + 24.0f;
-    float barY = modalPos.y + 82.0f;
-    float barW = modalSize.x - 48.0f;
-    float barH = 12.0f;
+        ImGui::SetCursorScreenPos(ImVec2(modalPos.x + 24, modalPos.y + 54));
+        std::string newVer = m_updater.GetLatestVersion();
+        ImGui::TextColored(ImVec4(0.92f, 0.93f, 0.95f, 1.0f), "Uma nova versao do executavel foi detectada no GitHub:");
+        
+        ImGui::SetCursorScreenPos(ImVec2(modalPos.x + 24, modalPos.y + 78));
+        ImGui::TextColored(ImVec4(0.85f, 0.65f, 0.95f, 1.0f), "Versao detectada: %s", newVer.c_str());
 
-    drawList->AddRectFilled(ImVec2(barX, barY), ImVec2(barX + barW, barY + barH), IM_COL32(14, 15, 20, 255), 6.0f);
-    drawList->AddRect(ImVec2(barX, barY), ImVec2(barX + barW, barY + barH), IM_COL32(45, 48, 60, 255), 6.0f);
+        ImGui::SetCursorScreenPos(ImVec2(modalPos.x + 24, modalPos.y + 104));
+        ImGui::TextColored(ImVec4(0.65f, 0.70f, 0.80f, 1.0f), "Deseja baixar e atualizar o executavel agora?");
 
-    float progress = m_updater.GetProgress();
-    float fillW = barW * std::clamp(progress, 0.05f, 1.0f);
-    drawList->AddRectFilled(ImVec2(barX, barY), ImVec2(barX + fillW, barY + barH), IM_COL32(238, 142, 164, 255), 6.0f);
-
-    ImGui::SetCursorScreenPos(ImVec2(modalPos.x + modalSize.x - 130.0f, modalPos.y + 124.0f));
-    bool isFinished = (!m_updater.IsBusy() && m_updater.GetState() != UpdaterState::Checking && m_updater.GetState() != UpdaterState::Downloading);
-
-    if (PrimordialButton(isFinished ? "Restart" : "Dismiss", ImVec2(106, 32), isFinished, isFinished)) {
-        if (!isFinished) {
-            m_updater.Cancel();
+        // Action Buttons
+        ImGui::SetCursorScreenPos(ImVec2(modalPos.x + modalSize.x - 220.0f, modalPos.y + 145.0f));
+        if (PrimordialButton("Depois", ImVec2(80, 32), false, false)) {
+            m_showUpdateModal = false;
+            m_updater.DismissLoaderModal();
         }
-        m_showUpdateModal = false;
-        m_updater.DismissLoaderModal();
+
+        ImGui::SameLine(0, 12.0f);
+        if (PrimordialButton("ATUALIZAR", ImVec2(115, 32), true, true)) {
+            m_updater.StartDownloadLoaderUpdateAsync();
+        }
+    }
+    else if (state == UpdaterState::Downloading) {
+        // --- STAGE 2: Downloading with Progress Bar ---
+        ImGui::SetCursorScreenPos(ImVec2(modalPos.x + 24, modalPos.y + 20));
+        if (m_fontBold) ImGui::PushFont(m_fontBold);
+        ImGui::TextColored(ImVec4(0.933f, 0.557f, 0.643f, 1.0f), "Baixando Atualizacao...");
+        if (m_fontBold) ImGui::PopFont();
+
+        ImGui::SetCursorScreenPos(ImVec2(modalPos.x + 24, modalPos.y + 52));
+        float progress = m_updater.GetProgress();
+        ImGui::TextColored(ImVec4(0.85f, 0.90f, 0.95f, 1.0f), "Progresso: %d%% - %s", (int)(progress * 100.0f), m_updater.GetStatusMessage().c_str());
+
+        // Glowing progress bar
+        float barX = modalPos.x + 24.0f;
+        float barY = modalPos.y + 88.0f;
+        float barW = modalSize.x - 48.0f;
+        float barH = 14.0f;
+
+        drawList->AddRectFilled(ImVec2(barX, barY), ImVec2(barX + barW, barY + barH), IM_COL32(14, 15, 20, 255), 6.0f);
+        drawList->AddRect(ImVec2(barX, barY), ImVec2(barX + barW, barY + barH), IM_COL32(45, 48, 60, 255), 6.0f);
+
+        float fillW = barW * std::clamp(progress, 0.05f, 1.0f);
+        drawList->AddRectFilled(ImVec2(barX, barY), ImVec2(barX + fillW, barY + barH), IM_COL32(238, 142, 164, 255), 6.0f);
+        DrawGlow(drawList, ImVec2(barX, barY), ImVec2(barX + fillW, barY + barH), IM_COL32(238, 142, 164, 120), 6.0f, 6.0f, 3);
+
+        ImGui::SetCursorScreenPos(ImVec2(modalPos.x + modalSize.x - 110.0f, modalPos.y + 145.0f));
+        if (PrimordialButton("Cancelar", ImVec2(90, 32), false, false)) {
+            m_updater.Cancel();
+            m_showUpdateModal = false;
+            m_updater.DismissLoaderModal();
+        }
+    }
+    else if (state == UpdaterState::Updated) {
+        // --- STAGE 3: Finished, prompt to Restart ---
+        ImGui::SetCursorScreenPos(ImVec2(modalPos.x + 24, modalPos.y + 20));
+        if (m_fontBold) ImGui::PushFont(m_fontBold);
+        ImGui::TextColored(ImVec4(0.0f, 0.95f, 0.55f, 1.0f), "Atualizacao Concluida!");
+        if (m_fontBold) ImGui::PopFont();
+
+        ImGui::SetCursorScreenPos(ImVec2(modalPos.x + 24, modalPos.y + 54));
+        ImGui::TextColored(ImVec4(0.92f, 0.93f, 0.95f, 1.0f), "O novo executavel foi baixado com sucesso.");
+
+        ImGui::SetCursorScreenPos(ImVec2(modalPos.x + 24, modalPos.y + 80));
+        ImGui::TextColored(ImVec4(0.70f, 0.75f, 0.85f, 1.0f), "Clique em Reiniciar para abrir a versao atualizada.");
+
+        ImGui::SetCursorScreenPos(ImVec2(modalPos.x + modalSize.x - 125.0f, modalPos.y + 145.0f));
+        if (PrimordialButton("Reiniciar", ImVec2(105, 32), true, true)) {
+            m_updater.ApplyAndRestart();
+            shouldClose = true;
+        }
+    }
+    else {
+        // Failed or other
+        ImGui::SetCursorScreenPos(ImVec2(modalPos.x + 24, modalPos.y + 20));
+        if (m_fontBold) ImGui::PushFont(m_fontBold);
+        ImGui::TextColored(ImVec4(1.0f, 0.4f, 0.4f, 1.0f), "Status da Atualizacao");
+        if (m_fontBold) ImGui::PopFont();
+
+        ImGui::SetCursorScreenPos(ImVec2(modalPos.x + 24, modalPos.y + 60));
+        ImGui::TextColored(ImVec4(0.85f, 0.85f, 0.90f, 1.0f), m_updater.GetStatusMessage().c_str());
+
+        ImGui::SetCursorScreenPos(ImVec2(modalPos.x + modalSize.x - 110.0f, modalPos.y + 145.0f));
+        if (PrimordialButton("Fechar", ImVec2(90, 32), false, false)) {
+            m_showUpdateModal = false;
+            m_updater.DismissLoaderModal();
+        }
     }
 }
 

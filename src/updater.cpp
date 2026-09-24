@@ -19,6 +19,7 @@ DllUpdater::DllUpdater()
     , m_hasNewLoaderUpdate(false)
     , m_statusMsg("Idle")
     , m_latestVersion("")
+    , m_pendingExeUrl("")
 {
 }
 
@@ -51,6 +52,11 @@ std::string DllUpdater::GetLatestVersion() {
     return m_latestVersion;
 }
 
+std::string DllUpdater::GetPendingExeUrl() {
+    std::lock_guard<std::mutex> lock(m_mutex);
+    return m_pendingExeUrl;
+}
+
 bool DllUpdater::IsBusy() {
     return m_isBusy.load();
 }
@@ -64,34 +70,42 @@ void DllUpdater::DismissLoaderModal() {
 }
 
 static std::string ExtractJsonField(const std::string& json, const std::string& key) {
-    std::string searchKey = "\"" + key + "\":";
+    std::string searchKey = "\"" + key + "\"";
     size_t pos = json.find(searchKey);
     if (pos == std::string::npos) return "";
 
-    pos = json.find('"', pos + searchKey.length());
-    if (pos == std::string::npos) return "";
+    size_t colonPos = json.find(':', pos + searchKey.length());
+    if (colonPos == std::string::npos) return "";
 
-    size_t endPos = json.find('"', pos + 1);
-    if (endPos == std::string::npos) return "";
+    size_t startQuote = json.find('"', colonPos + 1);
+    if (startQuote == std::string::npos) return "";
 
-    return json.substr(pos + 1, endPos - pos - 1);
+    size_t endQuote = json.find('"', startQuote + 1);
+    if (endQuote == std::string::npos) return "";
+
+    return json.substr(startQuote + 1, endQuote - startQuote - 1);
 }
 
 static std::string ExtractAssetUrl(const std::string& json, const std::string& pattern) {
+    std::string key = "\"browser_download_url\"";
     size_t searchPos = 0;
-    std::string key = "\"browser_download_url\":";
+
+    std::string lowerPattern = pattern;
+    std::transform(lowerPattern.begin(), lowerPattern.end(), lowerPattern.begin(), ::tolower);
 
     while ((searchPos = json.find(key, searchPos)) != std::string::npos) {
-        size_t quoteStart = json.find('"', searchPos + key.length());
+        size_t colonPos = json.find(':', searchPos + key.length());
+        if (colonPos == std::string::npos) break;
+
+        size_t quoteStart = json.find('"', colonPos + 1);
         if (quoteStart == std::string::npos) break;
+
         size_t quoteEnd = json.find('"', quoteStart + 1);
         if (quoteEnd == std::string::npos) break;
 
         std::string url = json.substr(quoteStart + 1, quoteEnd - quoteStart - 1);
         std::string lowerUrl = url;
         std::transform(lowerUrl.begin(), lowerUrl.end(), lowerUrl.begin(), ::tolower);
-        std::string lowerPattern = pattern;
-        std::transform(lowerPattern.begin(), lowerPattern.end(), lowerPattern.begin(), ::tolower);
 
         if (lowerPattern.empty() || lowerUrl.find(lowerPattern) != std::string::npos) {
             return url;
@@ -311,13 +325,13 @@ void DllUpdater::WorkerThreadDll(UpdateConfig config) {
     else {
         std::lock_guard<std::mutex> lock(m_mutex);
         m_statusMsg = "Local DLL ready.";
-        m_state = UpdaterState::UpToDate; // Keep smooth fallback
+        m_state = UpdaterState::UpToDate;
     }
 
     m_isBusy = false;
 }
 
-// Loader Client Auto-Updater: checks in background, triggers modal ONLY if new loader exists
+// Loader Client Auto-Updater: checks in background for new .exe releases on GitHub
 void DllUpdater::CheckLoaderUpdateAsync(const std::string& repo, const std::string& currentVersion) {
     if (repo.empty() || m_isBusy) return;
 
@@ -327,10 +341,11 @@ void DllUpdater::CheckLoaderUpdateAsync(const std::string& repo, const std::stri
 
     m_cancel = false;
     m_isBusy = true;
-    m_worker = std::thread(&DllUpdater::WorkerThreadLoader, this, repo, currentVersion);
+    m_state = UpdaterState::Checking;
+    m_worker = std::thread(&DllUpdater::WorkerThreadLoaderCheck, this, repo, currentVersion);
 }
 
-void DllUpdater::WorkerThreadLoader(std::string repo, std::string currentVersion) {
+void DllUpdater::WorkerThreadLoaderCheck(std::string repo, std::string currentVersion) {
     std::string apiUrl = "https://api.github.com/repos/" + repo + "/releases/latest";
     HINTERNET hInternet = InternetOpenA("NeoNirvana-LoaderUpdater/1.0", INTERNET_OPEN_TYPE_PRECONFIG, NULL, NULL, 0);
     if (!hInternet) {
@@ -361,26 +376,90 @@ void DllUpdater::WorkerThreadLoader(std::string repo, std::string currentVersion
     }
     InternetCloseHandle(hInternet);
 
-    // If new version found and differs from current
+    // If new version found and differs from current version
     if (!foundVersion.empty() && foundVersion != currentVersion && !exeDownloadUrl.empty()) {
         {
             std::lock_guard<std::mutex> lock(m_mutex);
-            m_statusMsg = "New NeoNirvana version found: " + foundVersion + ". Updating client...";
+            m_statusMsg = "Nova versão do loader disponível: " + foundVersion;
             m_latestVersion = foundVersion;
+            m_pendingExeUrl = exeDownloadUrl;
         }
-        // ONLY now show the update screen!
+        // Signal UI to show update screen with the "ATUALIZAR" button!
         m_hasNewLoaderUpdate = true;
-        m_state = UpdaterState::Downloading;
-
-        std::string err;
-        std::string newExePath = "bin/NeoNirvana_new.exe";
-        bool ok = DownloadFile(exeDownloadUrl, newExePath, m_progress, m_cancel, err);
-        if (ok) {
-            std::lock_guard<std::mutex> lock(m_mutex);
-            m_statusMsg = "Client updated to " + foundVersion + "! Restarting...";
-            m_state = UpdaterState::Updated;
-        }
+        m_state = UpdaterState::UpdateAvailable;
+    }
+    else {
+        std::lock_guard<std::mutex> lock(m_mutex);
+        m_statusMsg = "O loader está na versão mais recente.";
+        m_state = UpdaterState::UpToDate;
     }
 
     m_isBusy = false;
+}
+
+// When user clicks the "ATUALIZAR" button
+void DllUpdater::StartDownloadLoaderUpdateAsync() {
+    if (m_isBusy) return;
+
+    if (m_worker.joinable()) {
+        m_worker.join();
+    }
+
+    m_cancel = false;
+    m_isBusy = true;
+    m_state = UpdaterState::Downloading;
+    m_progress = 0.0f;
+    m_worker = std::thread(&DllUpdater::WorkerThreadLoaderDownload, this);
+}
+
+void DllUpdater::WorkerThreadLoaderDownload() {
+    std::string downloadUrl;
+    std::string ver;
+    {
+        std::lock_guard<std::mutex> lock(m_mutex);
+        downloadUrl = m_pendingExeUrl;
+        ver = m_latestVersion;
+        m_statusMsg = "Baixando versão " + ver + "...";
+    }
+
+    if (downloadUrl.empty()) {
+        std::lock_guard<std::mutex> lock(m_mutex);
+        m_statusMsg = "URL de download do executável não encontrada.";
+        m_state = UpdaterState::Failed;
+        m_isBusy = false;
+        return;
+    }
+
+    std::string newExePath = "bin/NeoNirvana_new.exe";
+    std::string err;
+    bool ok = DownloadFile(downloadUrl, newExePath, m_progress, m_cancel, err);
+
+    if (ok) {
+        std::lock_guard<std::mutex> lock(m_mutex);
+        m_statusMsg = "Download concluído com sucesso!";
+        m_state = UpdaterState::Updated;
+    }
+    else {
+        std::lock_guard<std::mutex> lock(m_mutex);
+        m_statusMsg = "Falha no download: " + err;
+        m_state = UpdaterState::Failed;
+    }
+
+    m_isBusy = false;
+}
+
+void DllUpdater::ApplyAndRestart() {
+    STARTUPINFOA si = { sizeof(si) };
+    PROCESS_INFORMATION pi = { 0 };
+
+    if (CreateProcessA("bin/NeoNirvana_new.exe", NULL, NULL, NULL, FALSE, 0, NULL, NULL, &si, &pi)) {
+        CloseHandle(pi.hProcess);
+        CloseHandle(pi.hThread);
+        ExitProcess(0);
+    }
+    else if (CreateProcessA("NeoNirvana_new.exe", NULL, NULL, NULL, FALSE, 0, NULL, NULL, &si, &pi)) {
+        CloseHandle(pi.hProcess);
+        CloseHandle(pi.hThread);
+        ExitProcess(0);
+    }
 }

@@ -10,6 +10,7 @@
 enum class UpdaterState {
     Idle,
     Checking,
+    UpdateAvailable,
     Downloading,
     UpToDate,
     Updated,
@@ -33,8 +34,11 @@ public:
     // Silent background DLL check and update
     void CheckDllSilentAsync(const UpdateConfig& config);
 
-    // Loader client update check (only triggers modal if newer version is found)
+    // Loader client update check (detects newer version on GitHub)
     void CheckLoaderUpdateAsync(const std::string& repo, const std::string& currentLoaderVersion);
+
+    // Trigger download of the detected loader update
+    void StartDownloadLoaderUpdateAsync();
 
     // Manual check trigger
     void CheckAndUpdateAsync(const UpdateConfig& config);
@@ -45,9 +49,11 @@ public:
     float GetProgress();          // 0.0f to 1.0f
     std::string GetStatusMessage();
     std::string GetLatestVersion();
+    std::string GetPendingExeUrl();
     bool IsBusy();
     bool HasNewLoaderUpdate();
     void DismissLoaderModal();
+    void ApplyAndRestart();
 
     static bool DownloadFile(const std::string& url, const std::string& destPath, 
                              std::atomic<float>& progress, std::atomic<bool>& cancelFlag, 
@@ -55,7 +61,8 @@ public:
 
 private:
     void WorkerThreadDll(UpdateConfig config);
-    void WorkerThreadLoader(std::string repo, std::string currentVersion);
+    void WorkerThreadLoaderCheck(std::string repo, std::string currentVersion);
+    void WorkerThreadLoaderDownload();
 
     std::atomic<UpdaterState> m_state;
     std::atomic<float> m_progress;
@@ -66,5 +73,6 @@ private:
     std::mutex m_mutex;
     std::string m_statusMsg;
     std::string m_latestVersion;
+    std::string m_pendingExeUrl;
     std::thread m_worker;
 };
