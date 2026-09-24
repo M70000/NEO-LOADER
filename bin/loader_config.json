@@ -11,7 +11,7 @@
     {
       "name": "Counter-Strike 2",
       "exeName": "cs2.exe",
-      "dllPath": "payloads/cs2_module.dll",
+      "dllPath": "C:\\\\Phantom\\\\bin\\\\velocity-cs2-dev.dll",
       "githubRepo": "Paxai/DLLium",
       "githubAsset": ".dll",
       "directUrl": "",

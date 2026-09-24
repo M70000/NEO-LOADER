@@ -47,6 +47,8 @@ private:
     void DrawGradientUnderline(ImDrawList* drawList, ImVec2 start, ImVec2 end, ImU32 colLeft, ImU32 colRight);
     void DrawFlatCard(ImDrawList* drawList, ImVec2 min, ImVec2 max, ImU32 bgCol, ImU32 borderCol, float rounding);
     void DrawGlow(ImDrawList* drawList, ImVec2 min, ImVec2 max, ImU32 color, float rounding, float glowSize, int passes = 4);
+    void DrawGradientText(ImDrawList* drawList, ImFont* font, float fontSize, ImVec2 pos, const char* text, ImU32 colTop, ImU32 colBottom);
+    void RenderBrandedTitle(ImDrawList* drawList, ImVec2 pos);
     bool PrimordialButton(const char* label, ImVec2 size, bool isPrimary = false, bool withGlow = true);
 
     // Live state

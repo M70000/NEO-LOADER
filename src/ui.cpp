@@ -178,6 +178,66 @@ void VibeUI::DrawGlow(ImDrawList* drawList, ImVec2 min, ImVec2 max, ImU32 color,
     }
 }
 
+// Render text with smooth vertical gradient across vertex buffer
+void VibeUI::DrawGradientText(ImDrawList* drawList, ImFont* font, float fontSize, ImVec2 pos, const char* text, ImU32 colTop, ImU32 colBottom) {
+    if (!text || !*text) return;
+
+    ImVec2 textSize = font ? font->CalcTextSizeA(fontSize, FLT_MAX, 0.0f, text) : ImGui::CalcTextSize(text);
+    float minY = pos.y;
+    float maxY = pos.y + textSize.y;
+
+    int vtx_start = drawList->VtxBuffer.Size;
+    if (font) {
+        drawList->AddText(font, fontSize, pos, IM_COL32_WHITE, text);
+    } else {
+        drawList->AddText(pos, IM_COL32_WHITE, text);
+    }
+    int vtx_end = drawList->VtxBuffer.Size;
+
+    float r1 = (float)((colTop >> IM_COL32_R_SHIFT) & 0xFF);
+    float g1 = (float)((colTop >> IM_COL32_G_SHIFT) & 0xFF);
+    float b1 = (float)((colTop >> IM_COL32_B_SHIFT) & 0xFF);
+    float a1 = (float)((colTop >> IM_COL32_A_SHIFT) & 0xFF);
+
+    float r2 = (float)((colBottom >> IM_COL32_R_SHIFT) & 0xFF);
+    float g2 = (float)((colBottom >> IM_COL32_G_SHIFT) & 0xFF);
+    float b2 = (float)((colBottom >> IM_COL32_B_SHIFT) & 0xFF);
+    float a2 = (float)((colBottom >> IM_COL32_A_SHIFT) & 0xFF);
+
+    float height = (maxY - minY) > 0.0f ? (maxY - minY) : 1.0f;
+
+    for (int i = vtx_start; i < vtx_end; ++i) {
+        ImDrawVert& vert = drawList->VtxBuffer[i];
+        float t = std::clamp((vert.pos.y - minY) / height, 0.0f, 1.0f);
+        int r = (int)(r1 + (r2 - r1) * t);
+        int g = (int)(g1 + (g2 - g1) * t);
+        int b = (int)(b1 + (b2 - b1) * t);
+        int a = (int)(a1 + (a2 - a1) * t);
+        vert.col = IM_COL32(r, g, b, a);
+    }
+}
+
+// Render "NEO NIRVANA" with purple gradient on "NE"
+void VibeUI::RenderBrandedTitle(ImDrawList* drawList, ImVec2 pos) {
+    ImFont* font = m_fontTitle ? m_fontTitle : m_fontBold;
+    float fontSize = font ? font->LegacySize : 24.0f;
+
+    float curX = pos.x;
+
+    // 1. "NE" with purple gradient (Electric violet to deep royal purple)
+    ImU32 purpleTop = IM_COL32(215, 125, 255, 255);
+    ImU32 purpleBottom = IM_COL32(135, 45, 240, 255);
+    DrawGradientText(drawList, font, fontSize, ImVec2(curX, pos.y), "NE", purpleTop, purpleBottom);
+    curX += font ? font->CalcTextSizeA(fontSize, FLT_MAX, 0.0f, "NE").x : ImGui::CalcTextSize("NE").x;
+
+    // 2. "O " in soft lavender white
+    drawList->AddText(font, fontSize, ImVec2(curX, pos.y), IM_COL32(245, 238, 255, 255), "O ");
+    curX += font ? font->CalcTextSizeA(fontSize, FLT_MAX, 0.0f, "O ").x : ImGui::CalcTextSize("O ").x;
+
+    // 3. "NIRVANA" in signature pastel rose
+    drawList->AddText(font, fontSize, ImVec2(curX, pos.y), IM_COL32(238, 142, 164, 255), "NIRVANA");
+}
+
 // Primordial Button (Clean flat style with glowing LOAD button)
 bool VibeUI::PrimordialButton(const char* label, ImVec2 size, bool isPrimary, bool withGlow) {
     ImVec2 p = ImGui::GetCursorScreenPos();
@@ -407,18 +467,27 @@ void VibeUI::RenderPrimordialDashboard() {
     ImVec2 winSize = ImGui::GetWindowSize();
     ImDrawList* drawList = ImGui::GetWindowDrawList();
 
-    // 1. Centered Header: Hourglass Logo + "primordial" (in soft rose)
+    // 1. Centered Header: Hourglass Logo + "NEO NIRVANA" (purple gradient on "NE")
     float centerX = winSize.x * 0.5f;
-    float headerY = 56.0f;
+    float headerY = 54.0f;
 
-    // Hourglass Logo (28px height)
-    ImVec2 logoCenter(centerX - 82.0f, headerY + 12.0f);
-    DrawHourglassLogo(drawList, logoCenter, 28.0f, IM_COL32(230, 232, 240, 255), IM_COL32(238, 142, 164, 255));
+    ImFont* font = m_fontTitle ? m_fontTitle : m_fontBold;
+    float fontSize = font ? font->LegacySize : 24.0f;
+    float titleWidth = (font ? font->CalcTextSizeA(fontSize, FLT_MAX, 0.0f, "NE").x : 32.0f)
+                     + (font ? font->CalcTextSizeA(fontSize, FLT_MAX, 0.0f, "O ").x : 20.0f)
+                     + (font ? font->CalcTextSizeA(fontSize, FLT_MAX, 0.0f, "NIRVANA").x : 100.0f);
 
-    // Title: primordial
-    if (m_fontTitle) ImGui::PushFont(m_fontTitle);
-    drawList->AddText(ImVec2(centerX - 56.0f, headerY), IM_COL32(238, 142, 164, 255), "primordial");
-    if (m_fontTitle) ImGui::PopFont();
+    float logoSize = 28.0f;
+    float gap = 14.0f;
+    float totalHeaderW = logoSize + gap + titleWidth;
+    float startX = centerX - totalHeaderW * 0.5f;
+
+    // Hourglass Logo (28px height) with purple-rose sand
+    ImVec2 logoCenter(startX + logoSize * 0.5f, headerY + 14.0f);
+    DrawHourglassLogo(drawList, logoCenter, logoSize, IM_COL32(230, 232, 240, 255), IM_COL32(185, 95, 245, 255));
+
+    // Title: NEO NIRVANA
+    RenderBrandedTitle(drawList, ImVec2(startX + logoSize + gap, headerY));
 
     // 2. Signature Gradient Underline
     float lineY = headerY + 44.0f;
@@ -546,11 +615,14 @@ void VibeUI::RenderWaitingForGameScreen() {
 
     DrawHourglassLogo(drawList, ImVec2(centerX, centerY - 25.0f), 64.0f, IM_COL32(235, 235, 245, 255), sandCol);
 
-    // Title: primordial
-    if (m_fontTitle) ImGui::PushFont(m_fontTitle);
-    ImVec2 titleSize = ImGui::CalcTextSize("primordial");
-    drawList->AddText(ImVec2(centerX - titleSize.x * 0.5f, centerY + 30.0f), IM_COL32(238, 142, 164, 255), "primordial");
-    if (m_fontTitle) ImGui::PopFont();
+    // Title: NEO NIRVANA
+    ImFont* font = m_fontTitle ? m_fontTitle : m_fontBold;
+    float fontSize = font ? font->LegacySize : 24.0f;
+    float titleWidth = (font ? font->CalcTextSizeA(fontSize, FLT_MAX, 0.0f, "NE").x : 32.0f)
+                     + (font ? font->CalcTextSizeA(fontSize, FLT_MAX, 0.0f, "O ").x : 20.0f)
+                     + (font ? font->CalcTextSizeA(fontSize, FLT_MAX, 0.0f, "NIRVANA").x : 100.0f);
+
+    RenderBrandedTitle(drawList, ImVec2(centerX - titleWidth * 0.5f, centerY + 30.0f));
 
     // Gradient underline
     float lineY = centerY + 65.0f;
