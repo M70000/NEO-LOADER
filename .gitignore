@@ -1,0 +1,16 @@
+# Build artifacts
+*.obj
+*.ilk
+*.pdb
+*.exp
+*.lib
+*.tmp
+*.tlog
+
+# Submodules or cloned repos
+DLLium/
+imgui/.git/
+
+# User cache
+.vs/
+.vscode/

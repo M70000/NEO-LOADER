@@ -1,0 +1,32 @@
+{
+  "operatorName": "spawnyk1ng",
+  "activeProfileIndex": 0,
+  "autoCloseOnInject": true,
+  "waitForProcess": false,
+  "saveSelection": true,
+  "autoCheckUpdates": false,
+  "loaderGithubRepo": "M70000/NeoNirvana",
+  "loaderVersion": "v1.0.0",
+  "profiles": [
+    {
+      "name": "Counter-Strike 2",
+      "exeName": "cs2.exe",
+      "dllPath": "payloads/cs2_module.dll",
+      "githubRepo": "Paxai/DLLium",
+      "githubAsset": ".dll",
+      "directUrl": "",
+      "version": "Latest",
+      "statusText": "Undetected"
+    },
+    {
+      "name": "Custom Program",
+      "exeName": "notepad.exe",
+      "dllPath": "payloads/test_payload.dll",
+      "githubRepo": "",
+      "githubAsset": ".dll",
+      "directUrl": "",
+      "version": "v1.0.0",
+      "statusText": "Testing"
+    }
+  ]
+}
