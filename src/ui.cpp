@@ -555,20 +555,24 @@ void VibeUI::RenderLeftPanel() {
                IM_COL32(52, 62, 86, 200), 10.0f, true, IM_COL32(255, 43, 75, 35), 0.8f);
 
     // Padding child inside the card to prevent any border leaking
-    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(16.0f, 14.0f));
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(16.0f, 16.0f));
     ImGui::BeginChild("##LeftPanelChild", size, false, ImGuiWindowFlags_NoBackground);
 
     if (m_fontBold) ImGui::PushFont(m_fontBold);
-    ImGui::TextColored(ImVec4(0.95f, 0.96f, 0.98f, 1.0f), "Cheats & Profiles");
+    ImGui::TextColored(ImVec4(0.95f, 0.96f, 0.98f, 1.0f), "Profiles");
     if (m_fontBold) ImGui::PopFont();
+
+    ImGui::Dummy(ImVec2(0, 4.0f));
     ImGui::Separator();
+    ImGui::Dummy(ImVec2(0, 8.0f));
 
     auto& settings = ConfigManager::Get().Settings();
+    ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(0.0f, 6.0f));
     for (int i = 0; i < (int)settings.profiles.size(); ++i) {
         bool isSelected = (settings.activeProfileIndex == i);
         
         std::string itemLabel = settings.profiles[i].name;
-        if (ImGui::Selectable(itemLabel.c_str(), isSelected, 0, ImVec2(0, 30))) {
+        if (ImGui::Selectable(itemLabel.c_str(), isSelected, 0, ImVec2(0, 32.0f))) {
             settings.activeProfileIndex = i;
             auto& activeP = ConfigManager::Get().GetActiveProfile();
             strcpy_s(m_bufProcessName, sizeof(m_bufProcessName), activeP.exeName.c_str());
@@ -578,9 +582,10 @@ void VibeUI::RenderLeftPanel() {
             ConfigManager::Get().Save();
         }
     }
+    ImGui::PopStyleVar();
 
-    ImGui::Spacing();
-    if (GlowingButton("+ Add Custom Profile", ImVec2(ImGui::GetContentRegionAvail().x, 30), 
+    ImGui::Dummy(ImVec2(0, 10.0f));
+    if (GlowingButton("+ Add Custom Profile", ImVec2(ImGui::GetContentRegionAvail().x, 32), 
                       IM_COL32(32, 38, 54, 255), IM_COL32(180, 25, 55, 255), IM_COL32(255, 43, 75, 75))) {
         TargetProfile customP;
         customP.name = "Custom Game " + std::to_string(settings.profiles.size() + 1);
@@ -603,12 +608,12 @@ void VibeUI::RenderRightPanel() {
 
     // --- CARD 1: Target Program Information ---
     ImVec2 card1P = ImGui::GetCursorScreenPos();
-    float card1H = 120.0f;
+    float card1H = 136.0f;
     Draw3DCard(drawList, card1P, ImVec2(card1P.x + width, card1P.y + card1H),
                IM_COL32(28, 33, 46, 255), IM_COL32(15, 18, 26, 255),
                IM_COL32(56, 66, 92, 200), 10.0f, true, IM_COL32(255, 43, 75, 35), 0.7f);
 
-    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(16.0f, 12.0f));
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(18.0f, 14.0f));
     ImGui::BeginChild("##Card1Child", ImVec2(width, card1H), false, ImGuiWindowFlags_NoBackground);
 
     // Row 1: Header + PID Status
@@ -623,8 +628,12 @@ void VibeUI::RenderRightPanel() {
         ImGui::TextColored(ImVec4(1.0f, 0.75f, 0.20f, 1.0f), "Waiting for Game...");
     }
 
+    ImGui::Dummy(ImVec2(0, 8.0f));
+
     // Row 2: Label
-    ImGui::TextColored(ImVec4(0.75f, 0.80f, 0.90f, 1.0f), "Target Executable:");
+    ImGui::TextColored(ImVec4(0.72f, 0.77f, 0.88f, 1.0f), "Target Executable:");
+
+    ImGui::Dummy(ImVec2(0, 4.0f));
 
     // Row 3: InputText + Select Process
     ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x - 145.0f);
@@ -639,36 +648,42 @@ void VibeUI::RenderRightPanel() {
         m_showProcessPicker = true;
     }
 
+    ImGui::Dummy(ImVec2(0, 10.0f));
+
     // Row 4: Architecture Info
     if (m_fontSmall) ImGui::PushFont(m_fontSmall);
-    ImGui::TextColored(ImVec4(0.60f, 0.65f, 0.75f, 1.0f), "Architecture: x64 | Engine: Pure Manual Mapping | Privileges: SE_DEBUG");
+    ImGui::TextColored(ImVec4(0.60f, 0.65f, 0.75f, 1.0f), "Architecture: x64  |  Injection: Pure Manual Mapping  |  Privileges: SE_DEBUG");
     if (m_fontSmall) ImGui::PopFont();
 
     ImGui::EndChild();
     ImGui::PopStyleVar();
 
-    ImGui::Spacing();
+    ImGui::Dummy(ImVec2(0, 14.0f));
 
-    // --- CARD 2: Cheat & Module Information ---
+    // --- CARD 2: Module Information (Clean, generous spacing, no repo input) ---
     ImVec2 card2P = ImGui::GetCursorScreenPos();
-    float card2H = 175.0f;
+    float card2H = 136.0f;
     Draw3DCard(drawList, card2P, ImVec2(card2P.x + width, card2P.y + card2H),
                IM_COL32(28, 33, 46, 255), IM_COL32(15, 18, 26, 255),
                IM_COL32(56, 66, 92, 200), 10.0f, true, IM_COL32(255, 43, 75, 35), 0.7f);
 
-    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(16.0f, 12.0f));
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(18.0f, 14.0f));
     ImGui::BeginChild("##Card2Child", ImVec2(width, card2H), false, ImGuiWindowFlags_NoBackground);
 
     // Row 1: Header + Undetected Status
     if (m_fontBold) ImGui::PushFont(m_fontBold);
-    ImGui::TextColored(ImVec4(0.95f, 0.96f, 0.98f, 1.0f), "Cheat & Module Information");
+    ImGui::TextColored(ImVec4(0.95f, 0.96f, 0.98f, 1.0f), "Module Information");
     if (m_fontBold) ImGui::PopFont();
 
-    ImGui::SameLine(width - 150.0f);
+    ImGui::SameLine(width - 160.0f);
     ImGui::TextColored(ImVec4(0.0f, 0.95f, 0.55f, 1.0f), "Status: Undetected");
 
+    ImGui::Dummy(ImVec2(0, 8.0f));
+
     // Row 2: DLL Path label
-    ImGui::TextColored(ImVec4(0.75f, 0.80f, 0.90f, 1.0f), "DLL Payload Path:");
+    ImGui::TextColored(ImVec4(0.72f, 0.77f, 0.88f, 1.0f), "DLL Payload Path:");
+
+    ImGui::Dummy(ImVec2(0, 4.0f));
 
     // Row 3: DLL Path input + Browse button
     ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x - 110.0f);
@@ -682,36 +697,23 @@ void VibeUI::RenderRightPanel() {
         OpenDllFileDialog();
     }
 
-    // Row 4: GitHub Repo label
-    ImGui::TextColored(ImVec4(0.75f, 0.80f, 0.90f, 1.0f), "Auto-Updater (GitHub Repo):");
+    ImGui::Dummy(ImVec2(0, 10.0f));
 
-    // Row 5: GitHub Repo input + Sync button
-    ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x - 145.0f);
-    if (ImGui::InputText("##GithubRepo", m_bufGithubRepo, sizeof(m_bufGithubRepo))) {
-        auto& p = ConfigManager::Get().GetActiveProfile();
-        p.githubRepo = m_bufGithubRepo;
-        ConfigManager::Get().Save();
-    }
-    ImGui::SameLine(0, 10.0f);
-    if (GlowingButton("Sync DLL", ImVec2(135, 26), IM_COL32(38, 46, 64, 255), IM_COL32(190, 25, 60, 255), IM_COL32(255, 43, 75, 80))) {
-        TriggerUpdateCheck();
-    }
-
-    // Row 6: Module info (Clean, no Expiry)
+    // Row 4: Clean module details & auto-update status
     auto& p = ConfigManager::Get().GetActiveProfile();
     if (m_fontSmall) ImGui::PushFont(m_fontSmall);
-    ImGui::TextColored(ImVec4(0.60f, 0.65f, 0.75f, 1.0f), "Version: %s | Status: Ready | Active Profile: %s", 
+    ImGui::TextColored(ImVec4(0.60f, 0.65f, 0.75f, 1.0f), "Version: %s  |  Status: Ready  |  Active Profile: %s", 
                        p.version.c_str(), p.name.c_str());
     if (m_fontSmall) ImGui::PopFont();
 
     ImGui::EndChild();
     ImGui::PopStyleVar();
 
-    ImGui::Spacing();
+    ImGui::Dummy(ImVec2(0, 14.0f));
 
     // Options Row
     auto& settings = ConfigManager::Get().Settings();
-    if (ImGui::Checkbox("Save cheat selection", &settings.saveSelection)) {
+    if (ImGui::Checkbox("Save profile selection", &settings.saveSelection)) {
         ConfigManager::Get().Save();
     }
     ImGui::SameLine(240.0f);
