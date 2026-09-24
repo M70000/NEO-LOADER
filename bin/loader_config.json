@@ -5,13 +5,13 @@
   "waitForProcess": false,
   "saveSelection": true,
   "autoCheckUpdates": false,
-  "loaderGithubRepo": "M70000/NeoNirvana",
+  "loaderGithubRepo": "M70000/NEO-LOADER",
   "loaderVersion": "v1.0.0",
   "profiles": [
     {
       "name": "Counter-Strike 2",
       "exeName": "cs2.exe",
-      "dllPath": "C:\\\\Phantom\\\\bin\\\\velocity-cs2-dev.dll",
+      "dllPath": "C:\\\\\\\\Phantom\\\\\\\\bin\\\\\\\\velocity-cs2-dev.dll",
       "githubRepo": "Paxai/DLLium",
       "githubAsset": ".dll",
       "directUrl": "",

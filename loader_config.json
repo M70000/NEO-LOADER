@@ -5,7 +5,7 @@
   "waitForProcess": false,
   "saveSelection": true,
   "autoCheckUpdates": false,
-  "loaderGithubRepo": "M70000/NeoNirvana",
+  "loaderGithubRepo": "M70000/NEO-LOADER",
   "loaderVersion": "v1.0.0",
   "profiles": [
     {

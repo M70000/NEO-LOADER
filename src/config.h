@@ -22,7 +22,7 @@ struct LoaderSettings {
     bool autoCheckUpdates = true;
     std::string operatorName = "spawnyk1ng";
     std::string subscriptionExpiry = "30 Days";
-    std::string loaderGithubRepo = "M70000/NeoNirvana";
+    std::string loaderGithubRepo = "M70000/NEO-LOADER";
     std::string loaderVersion = "v1.0.0";
     std::vector<TargetProfile> profiles;
 };
