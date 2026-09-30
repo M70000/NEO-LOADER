@@ -1,28 +1,37 @@
 #include <Windows.h>
+#include <windowsx.h>
 #include <d3d11.h>
+#include <dxgi1_3.h>
+#include <dcomp.h>
 #include <dwmapi.h>
 #include "imgui.h"
 #include "backends/imgui_impl_win32.h"
 #include "backends/imgui_impl_dx11.h"
 #include "ui.h"
+#include "audio.h"
 
 #pragma comment(lib, "d3d11.lib")
+#pragma comment(lib, "dcomp.lib")
 #pragma comment(lib, "dwmapi.lib")
 #pragma comment(lib, "user32.lib")
 #pragma comment(lib, "gdi32.lib")
 #pragma comment(lib, "comctl32.lib")
 #pragma comment(lib, "ole32.lib")
 #pragma comment(lib, "shell32.lib")
+#pragma comment(lib, "winmm.lib")
 
 // Forward declare message handler from imgui_impl_win32.cpp
 extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
 
 static ID3D11Device*            g_pd3dDevice = nullptr;
 static ID3D11DeviceContext*     g_pd3dDeviceContext = nullptr;
-static IDXGISwapChain*          g_pSwapChain = nullptr;
+static IDXGISwapChain1*         g_pSwapChain = nullptr;
+static IDCompositionDevice*     g_dcompDevice = nullptr;
+static IDCompositionTarget*     g_dcompTarget = nullptr;
+static IDCompositionVisual*     g_dcompVisual = nullptr;
 static UINT                     g_ResizeWidth = 0, g_ResizeHeight = 0;
 static ID3D11RenderTargetView*  g_mainRenderTargetView = nullptr;
-const int                       g_WinWidth = 660;
+const int                       g_WinWidth = 700;
 const int                       g_WinHeight = 440;
 
 bool CreateDeviceD3D(HWND hWnd);
@@ -59,7 +68,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
     int posY = (screenH - g_WinHeight) / 2;
 
     HWND hWnd = CreateWindowExW(
-        WS_EX_APPWINDOW,
+        WS_EX_APPWINDOW | WS_EX_NOREDIRECTIONBITMAP,
         wc.lpszClassName,
         L"NeoNirvana",
         WS_POPUP | WS_VISIBLE,
@@ -80,6 +89,33 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
     BOOL darkMode = TRUE;
     DwmSetWindowAttribute(hWnd, 20 /* DWMWA_USE_IMMERSIVE_DARK_MODE */, &darkMode, sizeof(darkMode));
 
+    // ---- frosted glass ----------------------------------------------------
+    // The client area is a premultiplied DirectComposition surface, so anything
+    // the UI leaves transparent is filled by DWM with the system backdrop
+    // material. DWMSBT_TRANSIENTWINDOW is the acrylic one (blurred + noisy);
+    // fall back to Mica, then to the pre-22H2 Mica attribute, then to plain
+    // transparency so the UI is still usable on an older build.
+    {
+        enum DWM_SYSTEMBACKDROP_TYPE {
+            DWMSBT_AUTO = 0, DWMSBT_NONE = 1, DWMSBT_MAINWINDOW = 2,
+            DWMSBT_TRANSIENTWINDOW = 3, DWMSBT_TABBEDWINDOW = 4
+        };
+        int backdrop = DWMSBT_TRANSIENTWINDOW;
+        HRESULT bd = DwmSetWindowAttribute(hWnd, 38 /* DWMWA_SYSTEMBACKDROP_TYPE */,
+                                           &backdrop, sizeof(backdrop));
+        if (FAILED(bd)) {
+            backdrop = DWMSBT_MAINWINDOW;
+            bd = DwmSetWindowAttribute(hWnd, 38, &backdrop, sizeof(backdrop));
+        }
+        if (FAILED(bd)) {
+            BOOL mica = TRUE;
+            DwmSetWindowAttribute(hWnd, 1029 /* DWMWA_MICA_EFFECT */, &mica, sizeof(mica));
+        }
+        // Let the backdrop cover the whole client area of this frameless window.
+        MARGINS margins = { -1, -1, -1, -1 };
+        DwmExtendFrameIntoClientArea(hWnd, &margins);
+    }
+
     // Initialize Direct3D 11
     if (!CreateDeviceD3D(hWnd)) {
         CleanupDeviceD3D();
@@ -99,18 +135,23 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
     // Load bold, premium Segoe UI Semibold and Bold fonts
     ImFontConfig fontCfg;
     fontCfg.OversampleH = 3;
-    fontCfg.OversampleV = 3;
-    fontCfg.RasterizerMultiply = 1.25f; // Heavier, crisp, premium stroke
+    fontCfg.OversampleV = 2;
+    fontCfg.RasterizerMultiply = 1.10f; // slightly heavier, crisper stroke
 
-    // Segoe UI Semibold (seguisb.ttf) is heavy and premium
-    VibeUI::Get().m_fontRegular = io.Fonts->AddFontFromFileTTF("C:\\Windows\\Fonts\\seguisb.ttf", 16.0f, &fontCfg);
-    VibeUI::Get().m_fontBold    = io.Fonts->AddFontFromFileTTF("C:\\Windows\\Fonts\\segoeuib.ttf", 16.5f, &fontCfg);
-    VibeUI::Get().m_fontTitle   = io.Fonts->AddFontFromFileTTF("C:\\Windows\\Fonts\\segoeuib.ttf", 24.0f, &fontCfg);
-    VibeUI::Get().m_fontSmall   = io.Fonts->AddFontFromFileTTF("C:\\Windows\\Fonts\\seguisb.ttf", 13.0f, &fontCfg);
+    // Segoe UI Semibold (seguisb.ttf) and Bold (segoeuib.ttf)
+    VibeUI::Get().m_fontRegular = io.Fonts->AddFontFromFileTTF("C:\\Windows\\Fonts\\seguisb.ttf", 14.0f, &fontCfg);
+    VibeUI::Get().m_fontBold    = io.Fonts->AddFontFromFileTTF("C:\\Windows\\Fonts\\segoeuib.ttf", 14.0f, &fontCfg);
+    VibeUI::Get().m_fontTitle   = io.Fonts->AddFontFromFileTTF("C:\\Windows\\Fonts\\segoeuib.ttf", 21.0f, &fontCfg);
+    VibeUI::Get().m_fontSmall   = io.Fonts->AddFontFromFileTTF("C:\\Windows\\Fonts\\seguisb.ttf", 12.0f, &fontCfg);
+    VibeUI::Get().m_fontTiny    = io.Fonts->AddFontFromFileTTF("C:\\Windows\\Fonts\\seguisb.ttf", 10.5f, &fontCfg);
 
     if (!VibeUI::Get().m_fontRegular) {
         io.Fonts->AddFontDefault();
     }
+    if (!VibeUI::Get().m_fontTiny)    VibeUI::Get().m_fontTiny = VibeUI::Get().m_fontRegular;
+    if (!VibeUI::Get().m_fontSmall)   VibeUI::Get().m_fontSmall = VibeUI::Get().m_fontRegular;
+    if (!VibeUI::Get().m_fontBold)    VibeUI::Get().m_fontBold = VibeUI::Get().m_fontRegular;
+    if (!VibeUI::Get().m_fontTitle)   VibeUI::Get().m_fontTitle = VibeUI::Get().m_fontBold;
 
     io.IniFilename = nullptr; // Don't create imgui.ini
 
@@ -142,9 +183,11 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
         // Render UI
         VibeUI::Get().Render();
 
-        // Rendering
+        // Rendering. The clear must be fully transparent: the swapchain is
+        // premultiplied and blended onto the DWM acrylic backdrop, so anything
+        // we do not paint stays glass.
         ImGui::Render();
-        const float clear_color_with_alpha[4] = { 0.043f, 0.051f, 0.067f, 1.0f };
+        const float clear_color_with_alpha[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
         g_pd3dDeviceContext->OMSetRenderTargets(1, &g_mainRenderTargetView, nullptr);
         g_pd3dDeviceContext->ClearRenderTargetView(g_mainRenderTargetView, clear_color_with_alpha);
         ImGui_ImplDX11_RenderDrawData(ImGui::GetDrawData());
@@ -154,6 +197,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
     }
 
     // Cleanup
+    NeoAudio::Shutdown();
     ImGui_ImplDX11_Shutdown();
     ImGui_ImplWin32_Shutdown();
     ImGui::DestroyContext();
@@ -166,34 +210,66 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 }
 
 bool CreateDeviceD3D(HWND hWnd) {
-    DXGI_SWAP_CHAIN_DESC sd;
-    ZeroMemory(&sd, sizeof(sd));
-    sd.BufferCount = 2;
-    sd.BufferDesc.Width = 0;
-    sd.BufferDesc.Height = 0;
-    sd.BufferDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
-    sd.BufferDesc.RefreshRate.Numerator = 60;
-    sd.BufferDesc.RefreshRate.Denominator = 1;
-    sd.Flags = DXGI_SWAP_CHAIN_FLAG_ALLOW_MODE_SWITCH;
-    sd.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
-    sd.OutputWindow = hWnd;
-    sd.SampleDesc.Count = 1;
-    sd.SampleDesc.Quality = 0;
-    sd.Windowed = TRUE;
-    sd.SwapEffect = DXGI_SWAP_EFFECT_DISCARD;
-
-    UINT createDeviceFlags = 0;
+    // This window is drawn through DirectComposition rather than through an
+    // HWND swapchain, so the UI can be blended with per-pixel alpha over the
+    // DWM backdrop. That means: create the device alone, then a *composition*
+    // swapchain with premultiplied alpha, then hang it off a DComp visual.
+    UINT createDeviceFlags = D3D11_CREATE_DEVICE_BGRA_SUPPORT;
     D3D_FEATURE_LEVEL featureLevel;
-    const D3D_FEATURE_LEVEL featureLevelArray[2] = { D3D_FEATURE_LEVEL_11_0, D3D_FEATURE_LEVEL_10_0, };
-    HRESULT res = D3D11CreateDeviceAndSwapChain(nullptr, D3D_DRIVER_TYPE_HARDWARE, nullptr, createDeviceFlags, 
-                                               featureLevelArray, 2, D3D11_SDK_VERSION, &sd, &g_pSwapChain, 
-                                               &g_pd3dDevice, &featureLevel, &g_pd3dDeviceContext);
+    const D3D_FEATURE_LEVEL featureLevelArray[2] = { D3D_FEATURE_LEVEL_11_0, D3D_FEATURE_LEVEL_10_0 };
+    HRESULT res = D3D11CreateDevice(nullptr, D3D_DRIVER_TYPE_HARDWARE, nullptr, createDeviceFlags,
+                                    featureLevelArray, 2, D3D11_SDK_VERSION, &g_pd3dDevice,
+                                    &featureLevel, &g_pd3dDeviceContext);
     if (res == DXGI_ERROR_UNSUPPORTED) {
-        res = D3D11CreateDeviceAndSwapChain(nullptr, D3D_DRIVER_TYPE_WARP, nullptr, createDeviceFlags, 
-                                           featureLevelArray, 2, D3D11_SDK_VERSION, &sd, &g_pSwapChain, 
-                                           &g_pd3dDevice, &featureLevel, &g_pd3dDeviceContext);
+        res = D3D11CreateDevice(nullptr, D3D_DRIVER_TYPE_WARP, nullptr, createDeviceFlags,
+                                featureLevelArray, 2, D3D11_SDK_VERSION, &g_pd3dDevice,
+                                &featureLevel, &g_pd3dDeviceContext);
     }
-    if (res != S_OK) return false;
+    if (FAILED(res)) return false;
+
+    IDXGIDevice*   dxgiDevice = nullptr;
+    IDXGIAdapter*  adapter    = nullptr;
+    IDXGIFactory2* factory    = nullptr;
+    bool composed = false;
+
+    if (SUCCEEDED(g_pd3dDevice->QueryInterface(IID_PPV_ARGS(&dxgiDevice))) &&
+        SUCCEEDED(dxgiDevice->GetAdapter(&adapter)) &&
+        SUCCEEDED(adapter->GetParent(IID_PPV_ARGS(&factory))))
+    {
+        DXGI_SWAP_CHAIN_DESC1 sd;
+        ZeroMemory(&sd, sizeof(sd));
+        sd.Width              = (UINT)g_WinWidth;
+        sd.Height             = (UINT)g_WinHeight;
+        sd.Format             = DXGI_FORMAT_B8G8R8A8_UNORM;
+        sd.Stereo             = FALSE;
+        sd.SampleDesc.Count   = 1;
+        sd.SampleDesc.Quality = 0;
+        sd.BufferUsage        = DXGI_USAGE_RENDER_TARGET_OUTPUT;
+        sd.BufferCount        = 2;
+        sd.Scaling            = DXGI_SCALING_STRETCH;
+        sd.SwapEffect         = DXGI_SWAP_EFFECT_FLIP_SEQUENTIAL;
+        sd.AlphaMode          = DXGI_ALPHA_MODE_PREMULTIPLIED;
+
+        if (SUCCEEDED(factory->CreateSwapChainForComposition(g_pd3dDevice, &sd, nullptr, &g_pSwapChain)) &&
+            SUCCEEDED(DCompositionCreateDevice(dxgiDevice, IID_PPV_ARGS(&g_dcompDevice))) &&
+            SUCCEEDED(g_dcompDevice->CreateTargetForHwnd(hWnd, TRUE, &g_dcompTarget)) &&
+            SUCCEEDED(g_dcompDevice->CreateVisual(&g_dcompVisual)))
+        {
+            if (SUCCEEDED(g_dcompVisual->SetContent(g_pSwapChain)) &&
+                SUCCEEDED(g_dcompTarget->SetRoot(g_dcompVisual)) &&
+                SUCCEEDED(g_dcompDevice->Commit()))
+            {
+                composed = true;
+            }
+        }
+    }
+    if (factory)    factory->Release();
+    if (adapter)    adapter->Release();
+    if (dxgiDevice) dxgiDevice->Release();
+
+    // Without composition we cannot blend against the backdrop; bail out rather
+    // than show an unblended (black) frameless window.
+    if (!composed) return false;
 
     CreateRenderTarget();
     return true;
@@ -201,6 +277,9 @@ bool CreateDeviceD3D(HWND hWnd) {
 
 void CleanupDeviceD3D() {
     CleanupRenderTarget();
+    if (g_dcompVisual) { g_dcompVisual->Release(); g_dcompVisual = nullptr; }
+    if (g_dcompTarget) { g_dcompTarget->Release(); g_dcompTarget = nullptr; }
+    if (g_dcompDevice) { g_dcompDevice->Release(); g_dcompDevice = nullptr; }
     if (g_pSwapChain) { g_pSwapChain->Release(); g_pSwapChain = nullptr; }
     if (g_pd3dDeviceContext) { g_pd3dDeviceContext->Release(); g_pd3dDeviceContext = nullptr; }
     if (g_pd3dDevice) { g_pd3dDevice->Release(); g_pd3dDevice = nullptr; }
@@ -218,6 +297,25 @@ void CleanupRenderTarget() {
 }
 
 LRESULT WINAPI WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam) {
+    // ImGui's Win32 backend only samples the cursor while our window owns the
+    // foreground, so the first click on an unfocused loader used to be
+    // swallowed: the button-down event arrived with a stale mouse position, so
+    // no item was hovered and nothing happened. Feed the position ourselves for
+    // every mouse message so close / minimise / LOAD all react on click one.
+    if (ImGui::GetCurrentContext() != nullptr) {
+        switch (msg) {
+        case WM_MOUSEMOVE:
+        case WM_LBUTTONDOWN: case WM_LBUTTONUP: case WM_LBUTTONDBLCLK:
+        case WM_RBUTTONDOWN: case WM_RBUTTONUP: case WM_RBUTTONDBLCLK:
+        case WM_MBUTTONDOWN: case WM_MBUTTONUP: case WM_MBUTTONDBLCLK:
+            ImGui::GetIO().AddMousePosEvent((float)GET_X_LPARAM(lParam),
+                                            (float)GET_Y_LPARAM(lParam));
+            break;
+        default:
+            break;
+        }
+    }
+
     if (ImGui_ImplWin32_WndProcHandler(hWnd, msg, wParam, lParam))
         return true;
 
@@ -225,8 +323,9 @@ LRESULT WINAPI WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam) {
     case WM_NCHITTEST: {
         POINT pt = { (short)LOWORD(lParam), (short)HIWORD(lParam) };
         ScreenToClient(hWnd, &pt);
-        // Drag window by clicking the top bar (y <= 38), except for the minimize & close buttons at the right
-        if (pt.y >= 0 && pt.y <= 38 && pt.x >= 0 && pt.x <= (g_WinWidth - 75)) {
+        // Drag window by clicking the top strip (y <= 84), except for the
+        // minimize / close cluster pinned to the top-right corner.
+        if (pt.y >= 0 && pt.y <= 84 && pt.x >= 0 && pt.x <= (g_WinWidth - 100)) {
             return HTCAPTION;
         }
         return HTCLIENT;

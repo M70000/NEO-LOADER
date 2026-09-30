@@ -6,7 +6,7 @@
   "saveSelection": true,
   "autoCheckUpdates": false,
   "loaderGithubRepo": "M70000/NEO-LOADER",
-  "loaderVersion": "v1.0.0",
+  "loaderVersion": "v1.1.0",
   "profiles": [
     {
       "name": "Counter-Strike 2",

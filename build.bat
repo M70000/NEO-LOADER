@@ -2,7 +2,7 @@
 setlocal enabledelayedexpansion
 
 echo ========================================================
-echo  Compiling Vibe Loader (Manual Map Core + DX11 UI)
+echo  Compiling neo loader (manual map core + DX11 UI)
 echo ========================================================
 
 set "VS_PATH=C:\Program Files\Microsoft Visual Studio\18\Professional"
@@ -14,10 +14,12 @@ if not exist "%VS_PATH%\VC\Auxiliary\Build\vcvars64.bat" (
 call "%VS_PATH%\VC\Auxiliary\Build\vcvars64.bat" >nul 2>&1
 
 if not exist "bin" mkdir bin
+if exist "rezerosound.mp3" copy /y "rezerosound.mp3" "bin\rezerosound.mp3" >nul 2>&1
+if exist "version.txt" copy /y "version.txt" "bin\version.txt" >nul 2>&1
 
 set INCLUDES=/Isrc /Iimgui /Iimgui\backends
-set SOURCES=src\main.cpp src\ui.cpp src\injection.cpp src\updater.cpp src\config.cpp imgui\imgui.cpp imgui\imgui_draw.cpp imgui\imgui_tables.cpp imgui\imgui_widgets.cpp imgui\backends\imgui_impl_win32.cpp imgui\backends\imgui_impl_dx11.cpp
-set LIBS=d3d11.lib dxgi.lib dwmapi.lib user32.lib gdi32.lib comctl32.lib ole32.lib shell32.lib wininet.lib advapi32.lib
+set SOURCES=src\main.cpp src\ui.cpp src\theme.cpp src\audio.cpp src\injection.cpp src\updater.cpp src\config.cpp imgui\imgui.cpp imgui\imgui_draw.cpp imgui\imgui_tables.cpp imgui\imgui_widgets.cpp imgui\backends\imgui_impl_win32.cpp imgui\backends\imgui_impl_dx11.cpp
+set LIBS=d3d11.lib dxgi.lib dcomp.lib dwmapi.lib user32.lib gdi32.lib comctl32.lib ole32.lib shell32.lib wininet.lib advapi32.lib winmm.lib
 set CFLAGS=/nologo /O2 /MD /utf-8 /std:c++17 /EHsc /D UNICODE /D _UNICODE /D NDEBUG
 set LFLAGS=/link /SUBSYSTEM:WINDOWS /MANIFESTUAC:"level='asInvoker' uiAccess='false'" /OUT:bin\NeoNirvana.exe
 
